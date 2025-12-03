@@ -39,3 +39,9 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 - Graceful degradation (CLI works even if some files are missing/malformed)
 - Clear error messages (always show which file caused an issue)
 - No auto-modifications without explicit `--force` flag
+
+## Quick Start (Development)
+1. Modify code files (main.go, discovery.go, symlink.go, output.go, agents.go)
+2. Run `go build` to compile
+3. Test with `./agents <command>`
+4. Add new agent types in agents.go under SupportedAgents map

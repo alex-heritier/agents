@@ -1,2 +1,11 @@
-.DS_Store
 agents
+*.o
+*.a
+*.so
+.DS_Store
+.cursor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
