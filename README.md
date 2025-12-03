@@ -20,7 +20,7 @@ This tool treats `AGENTS.md` as the single source of truth and automatically cre
 ### Build from source
 
 ```bash
-git clone https://github.com/yourusername/agents.git
+git clone https://github.com/alex-heritier/agents.git
 cd agents
 go build
 ```
