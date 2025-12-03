@@ -24,6 +24,16 @@ var SupportedAgents = map[string]AgentConfig{
 		File: "COPILOT.md",
 		Dir:  "",
 	},
+	"gemini": {
+		Name: "gemini",
+		File: "GEMINI.md",
+		Dir:  "",
+	},
+	"qwen": {
+		Name: "qwen",
+		File: "QWEN.md",
+		Dir:  "",
+	},
 }
 
 // GetAgentNames returns a list of all supported agent names
