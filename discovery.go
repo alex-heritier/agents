@@ -50,9 +50,11 @@ func discoverAll() []GuidelineFile {
 			return nil
 		}
 
-		// Skip ignored directories
-		if info.IsDir() && ignoreDir[info.Name()] {
-			return filepath.SkipDir
+		// Skip ignored directories (but not .cursor since we need to discover cursor guidelines)
+		if info.IsDir() {
+			if ignoreDir[info.Name()] && info.Name() != ".cursor" {
+				return filepath.SkipDir
+			}
 		}
 
 		if info.IsDir() {

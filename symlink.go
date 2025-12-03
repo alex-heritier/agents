@@ -191,3 +191,63 @@ func askForConfirmation(targetPath, reason string) bool {
 	response = strings.TrimSpace(strings.ToLower(response))
 	return response == "y" || response == "yes"
 }
+
+// deleteGuidelineFiles removes guideline files for specified agents
+func deleteGuidelineFiles(selectedAgents []string, dryRun, verbose bool) {
+	var deleted int
+	var notFound int
+	var operations []string
+
+	allFiles := discoverAll()
+
+	for _, file := range allFiles {
+		// Check if this file matches any of the selected agents
+		shouldDelete := false
+		for _, agentName := range selectedAgents {
+			if strings.EqualFold(file.Agent, agentName) {
+				shouldDelete = true
+				break
+			}
+		}
+
+		if !shouldDelete {
+			continue
+		}
+
+		if dryRun {
+			deleted++
+			if verbose {
+				operations = append(operations, fmt.Sprintf("would delete: %s", file.Path))
+			}
+		} else {
+			if err := os.Remove(file.Path); err != nil {
+				notFound++
+				if verbose {
+					operations = append(operations, fmt.Sprintf("error: %s (%v)", file.Path, err))
+				}
+			} else {
+				deleted++
+				if verbose {
+					operations = append(operations, fmt.Sprintf("deleted: %s", file.Path))
+				}
+			}
+		}
+	}
+
+	formatRmSummary(deleted, notFound, verbose, operations)
+}
+
+// formatRmSummary prints a summary of deletion operations
+func formatRmSummary(deleted, notFound int, verbose bool, operations []string) {
+	fmt.Printf("Files deleted: %d\n", deleted)
+	if notFound > 0 {
+		fmt.Printf("Errors: %d\n", notFound)
+	}
+
+	if verbose && len(operations) > 0 {
+		fmt.Println("Operations:")
+		for _, op := range operations {
+			fmt.Println(op)
+		}
+	}
+}

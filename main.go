@@ -19,6 +19,8 @@ func main() {
 		cmdList()
 	case "sync":
 		cmdSync()
+	case "rm":
+		cmdRm()
 	case "help", "-h", "--help":
 		printHelp()
 	default:
@@ -49,6 +51,18 @@ Commands:
 	help2 := `                             --dry-run    Show what would be created without making changes
                              --verbose    Show detailed output of all operations
 
+  rm                       Delete guideline files for specified agents
+                           Flags:`
+	fmt.Print(help2)
+	
+	for _, agent := range GetAgentNames() {
+		cfg := SupportedAgents[agent]
+		fmt.Printf("                             --%s       Delete %s files\n", cfg.Name, cfg.File)
+	}
+	
+	help3 := `                             --dry-run    Show what would be deleted without making changes
+                             --verbose    Show detailed output of all operations
+
   help                     Show this help message
 
 Examples:
@@ -56,8 +70,10 @@ Examples:
   agents list --verbose
   agents sync --claude --cursor
   agents sync --claude --cursor --dry-run
+  agents rm --claude
+  agents rm --cursor --gemini --dry-run
 `
-	fmt.Print(help2)
+	fmt.Print(help3)
 }
 
 func cmdList() {
@@ -104,6 +120,42 @@ func cmdSync() {
 
 	agentsFiles := discoverAgents()
 	syncSymlinks(agentsFiles, selectedAgents, *dryRun, *verbose)
+}
+
+func cmdRm() {
+	fs := flag.NewFlagSet("rm", flag.ExitOnError)
+	dryRun := fs.Bool("dry-run", false, "Show what would be deleted without making changes")
+	verbose := fs.Bool("verbose", false, "Show detailed output of all operations")
+
+	// Dynamically register flags for each agent type
+	agentFlags := make(map[string]*bool)
+	for _, agent := range GetAgentNames() {
+		cfg := SupportedAgents[agent]
+		agentFlags[agent] = fs.Bool(cfg.Name, false, "Delete "+cfg.File+" files")
+	}
+	fs.Parse(os.Args[2:])
+
+	// Check if at least one agent flag is specified
+	atLeastOneAgent := false
+	selectedAgents := []string{}
+	for agent, enabled := range agentFlags {
+		if *enabled {
+			atLeastOneAgent = true
+			selectedAgents = append(selectedAgents, agent)
+		}
+	}
+
+	if !atLeastOneAgent {
+		agentNames := GetAgentNames()
+		fmt.Printf("Please specify at least one agent flag: --%s", agentNames[0])
+		for _, name := range agentNames[1:] {
+			fmt.Printf(", --%s", name)
+		}
+		fmt.Println()
+		os.Exit(1)
+	}
+
+	deleteGuidelineFiles(selectedAgents, *dryRun, *verbose)
 }
 
 type GuidelineFile struct {
