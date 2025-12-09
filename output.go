@@ -4,7 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"strconv"
 )
+
+func estimateTokens(size int64) int64 {
+	return size / 4
+}
 
 func formatList(files []GuidelineFile, verbose bool) {
 	if len(files) == 0 {
@@ -13,8 +18,8 @@ func formatList(files []GuidelineFile, verbose bool) {
 	}
 
 	// Print header
-	fmt.Printf("%-40s %-10s %-20s %-10s\n", "Directory", "Agent", "File", "Type")
-	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("%-30s %-15s %-10s\n", "Directory", "File", "Tokens")
+	fmt.Println(strings.Repeat("-", 55))
 
 	cwd, _ := filepath.Abs(".")
 	
@@ -30,12 +35,16 @@ func formatList(files []GuidelineFile, verbose bool) {
 			relDir = "./" + relDir
 		}
 
-		fileType := "file"
+		filename := f.File
+		var tokensStr string
 		if f.IsSymlink {
-			fileType = "symlink"
+			filename = "*" + filename
+			tokensStr = "-"
+		} else {
+			tokens := estimateTokens(f.Size)
+			tokensStr = strconv.FormatInt(tokens, 10)
 		}
-
-		fmt.Printf("%-40s %-10s %-20s %-10s\n", relDir, f.Agent, f.File, fileType)
+		fmt.Printf("%-30s %-15s %-10s\n", relDir, filename, tokensStr)
 	}
 
 	if verbose {

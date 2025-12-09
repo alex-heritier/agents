@@ -164,4 +164,5 @@ type GuidelineFile struct {
 	Agent     string // AGENTS, CLAUDE, CURSOR
 	File      string // filename
 	IsSymlink bool
+	Size      int64  // file size in bytes
 }

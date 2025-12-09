@@ -96,6 +96,7 @@ func discoverAll() []GuidelineFile {
 			Agent:     agent,
 			File:      filename,
 			IsSymlink: isSymlink,
+			Size:      info.Size(),
 		})
 
 		return nil
