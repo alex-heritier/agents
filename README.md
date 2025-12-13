@@ -164,6 +164,11 @@ Contributions welcome! To add a new agent type:
 2. Run `go build && go test` (if tests exist)
 3. Submit a PR
 
+## TODO
+
+- Support global/system-wide agents files
+- Support custom slash commands listing and syncing
+
 ## License
 
 MIT
