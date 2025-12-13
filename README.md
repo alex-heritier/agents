@@ -167,3 +167,8 @@ Contributions welcome! To add a new agent type:
 ## License
 
 MIT
+
+## TODO
+
+- Support global / systemwide agents files
+- Support custom slash commands listing and syncing
