@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -38,6 +39,9 @@ Commands:
   list                     Discover and display all guideline files with metadata
                            Flags:
                              --verbose    Show detailed output
+                             -g           Show only user/system-wide agent guideline files
+                             --global     Show only user/system-wide agent guideline files
+                             --<agent>    Filter by specific agent files (e.g., --claude, --cursor)
 
   sync                     Find all AGENTS.md files and create symlinks
                            Flags:`
@@ -68,6 +72,9 @@ Commands:
 Examples:
   agents list
   agents list --verbose
+  agents list --claude
+  agents list --gemini --global
+  agents list --claude --cursor --verbose
   agents sync --claude --cursor
   agents sync --claude --cursor --dry-run
   agents rm --claude
@@ -79,9 +86,47 @@ Examples:
 func cmdList() {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	verbose := fs.Bool("verbose", false, "Show detailed output")
+	global := fs.Bool("g", false, "Show only user/system-wide agent guideline files")
+	fs.BoolVar(global, "global", false, "Show only user/system-wide agent guideline files")
+
+	// Dynamically register flags for each agent type
+	agentFlags := make(map[string]*bool)
+	for _, agent := range GetAgentNames() {
+		cfg := SupportedAgents[agent]
+		agentFlags[agent] = fs.Bool(cfg.Name, false, "Filter by "+cfg.File+" files")
+	}
 	fs.Parse(os.Args[2:])
 
-	files := discoverAll()
+	// Determine which agents to filter by
+	filterAgents := []string{}
+	for agent, enabled := range agentFlags {
+		if *enabled {
+			filterAgents = append(filterAgents, agent)
+		}
+	}
+
+	var files []GuidelineFile
+	if *global {
+		files = discoverGlobalOnly()
+	} else {
+		files = discoverAll()
+	}
+	
+	// Filter by specified agents if any are provided
+	if len(filterAgents) > 0 {
+		filteredFiles := []GuidelineFile{}
+		for _, f := range files {
+			// Convert agent name to match the format (e.g., "claude" -> "CLAUDE")
+			for _, agent := range filterAgents {
+				if strings.ToUpper(agent) == f.Agent {
+					filteredFiles = append(filteredFiles, f)
+					break
+				}
+			}
+		}
+		files = filteredFiles
+	}
+	
 	formatList(files, *verbose)
 }
 

@@ -164,6 +164,15 @@ Contributions welcome! To add a new agent type:
 2. Run `go build && go test` (if tests exist)
 3. Submit a PR
 
+## Agent Configuration Reference
+
+For comprehensive information about how different AI agents use guideline files, see [agents-conventions.md](agents-conventions.md). This document covers:
+
+- Configuration options for Claude, Cursor, Copilot, Gemini, Qwen, and other agents
+- Hierarchical placement and precedence rules
+- Auto-generation and external file referencing
+- Best practices for cross-agent compatibility
+
 ## TODO
 
 - Support global/system-wide agents files

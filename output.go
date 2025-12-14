@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"strconv"
@@ -22,17 +23,66 @@ func formatList(files []GuidelineFile, verbose bool) {
 	fmt.Println(strings.Repeat("-", 55))
 
 	cwd, _ := filepath.Abs(".")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "" // If we can't get home directory, disable ~-relative display
+	}
+	
+	// Determine if we should show paths relative to home directory (~)
+	// We do this when all files are in standard global agent locations
+	showRelativeToHome := false
+	if len(files) > 0 && homeDir != "" {
+		// Standard global agent directories
+		standardGlobalPatterns := []string{
+			filepath.Join(homeDir, ".claude"),
+			filepath.Join(homeDir, ".codex"),
+			filepath.Join(homeDir, ".gemini"),
+			filepath.Join(homeDir, ".config"),
+		}
+		
+		allFilesAreGlobal := true
+		for _, f := range files {
+			isGlobal := false
+			for _, pattern := range standardGlobalPatterns {
+				if strings.HasPrefix(f.Dir, pattern) {
+					isGlobal = true
+					break
+				}
+			}
+			if !isGlobal {
+				allFilesAreGlobal = false
+				break
+			}
+		}
+		
+		if allFilesAreGlobal {
+			showRelativeToHome = true
+		}
+	}
 	
 	for _, f := range files {
-		// Make directory relative to cwd
-		relDir, err := filepath.Rel(cwd, f.Dir)
-		if err != nil {
-			relDir = f.Dir
-		}
-		if relDir == "." {
-			relDir = "./"
-		} else if !strings.HasPrefix(relDir, ".") {
-			relDir = "./" + relDir
+		var displayDir string
+		
+		if showRelativeToHome && homeDir != "" && strings.HasPrefix(f.Dir, homeDir) {
+			// Make directory relative to home directory and prefix with ~/
+			relDir, err := filepath.Rel(homeDir, f.Dir)
+			if err != nil || relDir == "." {
+				displayDir = "~/"
+			} else {
+				displayDir = "~/" + relDir
+			}
+		} else {
+			// Make directory relative to cwd
+			relDir, err := filepath.Rel(cwd, f.Dir)
+			if err != nil {
+				displayDir = f.Dir
+			} else if relDir == "." {
+				displayDir = "./"
+			} else if !strings.HasPrefix(relDir, ".") {
+				displayDir = "./" + relDir
+			} else {
+				displayDir = relDir + "/"
+			}
 		}
 
 		filename := f.File
@@ -44,7 +94,7 @@ func formatList(files []GuidelineFile, verbose bool) {
 			tokens := estimateTokens(f.Size)
 			tokensStr = strconv.FormatInt(tokens, 10)
 		}
-		fmt.Printf("%-30s %-15s %-10s\n", relDir, filename, tokensStr)
+		fmt.Printf("%-30s %-15s %-10s\n", displayDir, filename, tokensStr)
 	}
 
 	if verbose {

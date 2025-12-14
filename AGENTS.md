@@ -45,3 +45,7 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 2. Run `go build` to compile
 3. Test with `./agents <command>`
 4. Add new agent types in agents.go under SupportedAgents map
+
+## Agent Configuration Reference
+
+For detailed information about how different AI agents use guideline files, see [agents-conventions.md](agents-conventions.md). This comprehensive guide covers configuration options, hierarchical placement, and best practices for Claude, Cursor, Copilot, Gemini, Qwen, and other agents.

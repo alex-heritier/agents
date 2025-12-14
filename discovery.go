@@ -105,6 +105,91 @@ func discoverAll() []GuidelineFile {
 	return files
 }
 
+// globalGuidelinePaths returns the standard locations for global agent guideline files
+func globalGuidelinePaths() []string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return []string{} // Return empty if we can't get home directory
+	}
+	
+	return []string{
+		filepath.Join(homeDir, ".claude", "CLAUDE.md"),
+		filepath.Join(homeDir, ".codex", "AGENTS.md"),
+		filepath.Join(homeDir, ".gemini", "GEMINI.md"),
+		filepath.Join(homeDir, ".config", "opencode", "AGENTS.md"),
+		filepath.Join(homeDir, ".config", "amp", "AGENTS.md"),
+		filepath.Join(homeDir, ".config", "AGENTS.md"),
+		filepath.Join(homeDir, "AGENTS.md"),
+	}
+}
+
+// discoverGlobalOnly finds only user/system-wide agent guideline files
+func discoverGlobalOnly() []GuidelineFile {
+	var files []GuidelineFile
+	
+	globalLocations := globalGuidelinePaths()
+	if len(globalLocations) == 0 {
+		return files // If we can't get home directory, return empty
+	}
+	
+	for _, location := range globalLocations {
+		if fileExists(location) {
+			info, err := os.Stat(location)
+			if err != nil {
+				continue
+			}
+			
+			filename := filepath.Base(location)
+			dir := filepath.Dir(location)
+			
+			// Determine agent type
+			agent := inferAgentFromFilename(filename)
+			if agent == "" {
+				continue
+			}
+			
+			// Check if symlink
+			isSymlink := isSymlink(location)
+			
+			files = append(files, GuidelineFile{
+				Path:      location,
+				Dir:       dir,
+				Agent:     agent,
+				File:      filename,
+				IsSymlink: isSymlink,
+				Size:      info.Size(),
+			})
+		}
+	}
+	
+	return files
+}
+
+// inferAgentFromFilename determines the agent type from a filename
+func inferAgentFromFilename(filename string) string {
+	if filename == "AGENTS.md" {
+		return "AGENTS"
+	}
+	
+	// Check if this matches any agent configuration
+	for agentName, cfg := range SupportedAgents {
+		if filename == cfg.File {
+			return strings.ToUpper(agentName)
+		}
+	}
+	
+	return ""
+}
+
+// fileExists checks if a file exists and is not a directory
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
 func isSymlink(path string) bool {
 	info, err := os.Lstat(path)
 	if err != nil {
