@@ -1,0 +1,16 @@
+{
+  "name": "agents",
+  "version": "1.0.0",
+  "description": "Agent Guidelines Manager CLI - Sync AGENTS.md files across project hierarchy",
+  "type": "module",
+  "bin": {
+    "agents": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile agents",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "private": true,
+  "license": "MIT"
+}

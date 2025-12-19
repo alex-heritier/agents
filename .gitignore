@@ -1,4 +1,8 @@
 agents
+node_modules/
+bun.lock
+
+# Build artifacts
 *.o
 *.a
 *.so

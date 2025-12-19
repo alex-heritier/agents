@@ -35,16 +35,27 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 - With `--verbose`: list each operation (created/skipped and path)
 
 ## Development Guidelines
-- Minimal dependencies (prefer stdlib where possible)
+- Minimal dependencies (uses only Node.js built-in modules)
 - Graceful degradation (CLI works even if some files are missing/malformed)
 - Clear error messages (always show which file caused an issue)
 - No auto-modifications without explicit `--force` flag
 
 ## Quick Start (Development)
-1. Modify code files (main.go, discovery.go, symlink.go, output.go, agents.go)
-2. Run `go build` to compile
-3. Test with `./agents <command>`
-4. Add new agent types in agents.go under SupportedAgents map
+1. Modify code files in `src/` (index.ts, discovery.ts, symlink.ts, output.ts, agents.ts)
+2. Run `bun run src/index.ts <command>` to test
+3. Run `bun run build` to compile standalone binary
+4. Add new agent types in `src/agents.ts` under SupportedAgents map
+
+## Project Structure
+```
+src/
+├── index.ts      # CLI entry point and command router
+├── agents.ts     # Agent configurations (claude, cursor, etc.)
+├── discovery.ts  # File discovery logic
+├── output.ts     # Output formatting
+├── symlink.ts    # Symlink management
+└── types.ts      # TypeScript type definitions
+```
 
 ## Agent Configuration Reference
 

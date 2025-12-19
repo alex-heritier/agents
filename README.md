@@ -17,12 +17,16 @@ This tool treats `AGENTS.md` as the single source of truth and automatically cre
 
 ## Installation
 
+### Prerequisites
+
+- [Bun](https://bun.sh) runtime (v1.0+)
+
 ### Build from source
 
 ```bash
 git clone https://github.com/alex-heritier/agents.git
 cd agents
-go build
+bun run build
 ```
 
 This creates an `agents` binary in the current directory.
@@ -34,6 +38,15 @@ mv agents /usr/local/bin/
 ```
 
 Then use `agents` from anywhere.
+
+### Run directly with Bun
+
+You can also run without building:
+
+```bash
+bun run src/index.ts list
+bun run src/index.ts sync --claude --cursor
+```
 
 ## Usage
 
@@ -84,7 +97,7 @@ agents rm --claude --dry-run --verbose
 - **gemini** - Creates `GEMINI.md`
 - **qwen** - Creates `QWEN.md`
 
-Adding new agent types is simple: edit `agents.go` and add to the `SupportedAgents` map.
+Adding new agent types is simple: edit `src/agents.ts` and add to the `SupportedAgents` map.
 
 ## Workflow
 
@@ -151,17 +164,30 @@ agents rm --help
 
 ## Tech Stack
 
-- **Language:** Go
-- **Dependencies:** None (standard library only)
-- **Binary size:** ~5MB single executable
-- **Platforms:** macOS, Linux, Windows
+- **Runtime:** [Bun](https://bun.sh)
+- **Language:** TypeScript
+- **Dependencies:** None (uses only Node.js built-in modules)
+- **Platforms:** macOS, Linux, Windows (wherever Bun runs)
+
+## Development
+
+```bash
+# Run in development mode with watch
+bun run dev
+
+# Run directly
+bun run src/index.ts <command>
+
+# Build standalone binary
+bun run build
+```
 
 ## Contributing
 
 Contributions welcome! To add a new agent type:
 
-1. Edit `agents.go` and add to `SupportedAgents` map
-2. Run `go build && go test` (if tests exist)
+1. Edit `src/agents.ts` and add to `SupportedAgents` map
+2. Run `bun run src/index.ts list` to verify
 3. Submit a PR
 
 ## Agent Configuration Reference
