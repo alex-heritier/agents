@@ -1,46 +1,26 @@
 package main
 
-// AgentConfig defines how a guideline file should be created for an agent
-type AgentConfig struct {
-	Name string // agent identifier (claude, cursor, etc.)
-	File string // filename to create
-	Dir  string // subdirectory within project dir (empty string = root)
-}
+import "sort"
 
-// SupportedAgents defines all available agent types and their configurations
-var SupportedAgents = map[string]AgentConfig{
-	"claude": {
-		Name: "claude",
-		File: "CLAUDE.md",
-		Dir:  "",
-	},
-	"cursor": {
-		Name: "cursor",
-		File: "agents.md",
-		Dir:  ".cursor/rules",
-	},
-	"copilot": {
-		Name: "copilot",
-		File: "COPILOT.md",
-		Dir:  "",
-	},
-	"gemini": {
-		Name: "gemini",
-		File: "GEMINI.md",
-		Dir:  "",
-	},
-	"qwen": {
-		Name: "qwen",
-		File: "QWEN.md",
-		Dir:  "",
-	},
-}
-
-// GetAgentNames returns a list of all supported agent names
-func GetAgentNames() []string {
-	names := make([]string, 0, len(SupportedAgents))
-	for name := range SupportedAgents {
+func getProviderNames(cfg ProvidersConfig, specSelector func(ProviderConfig) *FileSpec) []string {
+	names := make([]string, 0, len(cfg.Providers))
+	for name, provider := range cfg.Providers {
+		if specSelector != nil && specSelector(provider) == nil {
+			continue
+		}
 		names = append(names, name)
 	}
+	sort.Strings(names)
 	return names
+}
+
+func getProviderFlagName(cfg ProvidersConfig, providerName string) string {
+	provider, ok := cfg.Providers[providerName]
+	if !ok {
+		return providerName
+	}
+	if provider.Name != "" {
+		return provider.Name
+	}
+	return providerName
 }

@@ -13,7 +13,7 @@ Managing multiple guideline files manually across nested directories is error-pr
 
 ## Solution
 
-This tool treats `AGENTS.md` as the single source of truth and automatically creates symlinks for each agent type. One command syncs your entire project hierarchy.
+This tool treats `AGENTS.md` as the single source of truth and automatically creates symlinks for each agent type. It also manages custom/slash command files using `COMMANDS.md` as a source file. One command syncs your entire project hierarchy.
 
 ## Installation
 
@@ -46,6 +46,15 @@ agents list
 agents list --verbose
 ```
 
+### List command files
+
+Discover all command files in your project:
+
+```bash
+agents list-commands
+agents list-commands --verbose
+```
+
 ### Sync guideline files
 
 Create symlinks for specified agents from all AGENTS.md files in your project:
@@ -59,6 +68,21 @@ agents sync --claude --cursor --dry-run
 
 # Verbose output showing each operation
 agents sync --claude --cursor --verbose
+```
+
+### Sync command files
+
+Create symlinks for specified agents from all COMMANDS.md files in your project:
+
+```bash
+# Create .claude/commands/commands.md and .cursor/commands/commands.md symlinks
+agents sync-commands --claude --cursor
+
+# Preview changes without applying
+agents sync-commands --claude --cursor --dry-run
+
+# Verbose output showing each operation
+agents sync-commands --claude --cursor --verbose
 ```
 
 ### Remove guideline files
@@ -76,6 +100,21 @@ agents rm --cursor --gemini --qwen
 agents rm --claude --dry-run --verbose
 ```
 
+### Remove command files
+
+Delete command files for specific agents:
+
+```bash
+# Delete all Claude command files
+agents rm-commands --claude
+
+# Delete multiple agents
+agents rm-commands --claude --cursor
+
+# Preview deletions
+agents rm-commands --claude --dry-run --verbose
+```
+
 ## Supported Agents
 
 - **claude** - Creates `CLAUDE.md`
@@ -84,7 +123,7 @@ agents rm --claude --dry-run --verbose
 - **gemini** - Creates `GEMINI.md`
 - **qwen** - Creates `QWEN.md`
 
-Adding new agent types is simple: edit `agents.go` and add to the `SupportedAgents` map.
+Adding new agent types is simple: edit `providers.json` and add to the `providers` map.
 
 ## Workflow
 
@@ -92,6 +131,8 @@ Adding new agent types is simple: edit `agents.go` and add to the `SupportedAgen
 2. Create the same file in any nested directories (subdirectories with their own guidelines)
 3. Run `agents sync --claude --cursor` (or any agents you use)
 4. All agent-specific files are now symlinks pointing to the corresponding AGENTS.md
+
+To sync custom/slash commands, add `COMMANDS.md` files and run `agents sync-commands`.
 
 When you update AGENTS.md, all agent-specific files automatically reflect the changes since they're symlinks.
 
@@ -173,10 +214,19 @@ For comprehensive information about how different AI agents use guideline files,
 - Auto-generation and external file referencing
 - Best practices for cross-agent compatibility
 
+## Provider Configuration
+
+Provider definitions live in `providers.json` (file names, directories, and source file names). You can extend or override these definitions by creating an optional file at:
+
+```
+$XDG_CONFIG_HOME/agents/providers.json
+```
+
+If `XDG_CONFIG_HOME` is not set, the tool falls back to `~/.config/agents/providers.json`.
+
 ## TODO
 
-- Support global/system-wide agents files
-- Support custom slash commands listing and syncing
+- Support global/system-wide commands files
 
 ## License
 

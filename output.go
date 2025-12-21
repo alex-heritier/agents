@@ -4,42 +4,38 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func estimateTokens(size int64) int64 {
 	return size / 4
 }
 
-func formatList(files []GuidelineFile, verbose bool) {
+func formatList(files []ManagedFile, verbose bool, emptyMessage string) {
 	if len(files) == 0 {
-		fmt.Println("No guideline files found.")
+		fmt.Println(emptyMessage)
 		return
 	}
 
-	// Print header
 	fmt.Printf("%-30s %-15s %-10s\n", "Directory", "File", "Tokens")
 	fmt.Println(strings.Repeat("-", 55))
 
 	cwd, _ := filepath.Abs(".")
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		homeDir = "" // If we can't get home directory, disable ~-relative display
+		homeDir = ""
 	}
-	
-	// Determine if we should show paths relative to home directory (~)
-	// We do this when all files are in standard global agent locations
+
 	showRelativeToHome := false
 	if len(files) > 0 && homeDir != "" {
-		// Standard global agent directories
 		standardGlobalPatterns := []string{
 			filepath.Join(homeDir, ".claude"),
 			filepath.Join(homeDir, ".codex"),
 			filepath.Join(homeDir, ".gemini"),
 			filepath.Join(homeDir, ".config"),
 		}
-		
+
 		allFilesAreGlobal := true
 		for _, f := range files {
 			isGlobal := false
@@ -54,17 +50,16 @@ func formatList(files []GuidelineFile, verbose bool) {
 				break
 			}
 		}
-		
+
 		if allFilesAreGlobal {
 			showRelativeToHome = true
 		}
 	}
-	
+
 	for _, f := range files {
 		var displayDir string
-		
+
 		if showRelativeToHome && homeDir != "" && strings.HasPrefix(f.Dir, homeDir) {
-			// Make directory relative to home directory and prefix with ~/
 			relDir, err := filepath.Rel(homeDir, f.Dir)
 			if err != nil || relDir == "." {
 				displayDir = "~/"
@@ -72,7 +67,6 @@ func formatList(files []GuidelineFile, verbose bool) {
 				displayDir = "~/" + relDir
 			}
 		} else {
-			// Make directory relative to cwd
 			relDir, err := filepath.Rel(cwd, f.Dir)
 			if err != nil {
 				displayDir = f.Dir
@@ -102,8 +96,8 @@ func formatList(files []GuidelineFile, verbose bool) {
 	}
 }
 
-func formatSyncSummary(found, created, skipped int, verbose bool, operations []string) {
-	fmt.Printf("AGENTS.md files found: %d\n", found)
+func formatSyncSummary(sourceName string, found, created, skipped int, verbose bool, operations []string) {
+	fmt.Printf("%s files found: %d\n", sourceName, found)
 	fmt.Printf("Symlinks created: %d\n", created)
 	fmt.Printf("Symlinks skipped: %d\n", skipped)
 

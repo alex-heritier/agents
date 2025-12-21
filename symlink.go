@@ -9,27 +9,29 @@ import (
 	"strings"
 )
 
-func syncSymlinks(agents []string, selectedAgents []string, dryRun, verbose bool) {
+func syncSymlinks(sources []string, selectedProviders []string, cfg ProvidersConfig, specSelector func(ProviderConfig) *FileSpec, dryRun, verbose bool) (int, int, []string) {
 	var created int
 	var skipped int
 	var operations []string
 
-	for _, agentPath := range agents {
-		dir := filepath.Dir(agentPath)
-		filename := filepath.Base(agentPath)
+	for _, sourcePath := range sources {
+		dir := filepath.Dir(sourcePath)
+		filename := filepath.Base(sourcePath)
 
-		for _, agentName := range selectedAgents {
-			cfg := SupportedAgents[agentName]
+		for _, providerName := range selectedProviders {
+			provider := cfg.Providers[providerName]
+			spec := specSelector(provider)
+			if spec == nil {
+				continue
+			}
 
 			var created_, skipped_ int
 			var op string
 
-			if cfg.Dir == "" {
-				// Create symlink in same directory
-				created_, skipped_, op = createSymlink(dir, filename, cfg.File, dryRun, verbose)
+			if spec.Dir == "" {
+				created_, skipped_, op = createSymlink(dir, filename, spec.File, dryRun, verbose)
 			} else {
-				// Create symlink in subdirectory
-				created_, skipped_, op = createSymlinkInDir(dir, filename, cfg.Dir, cfg.File, dryRun, verbose)
+				created_, skipped_, op = createSymlinkInDir(dir, filename, spec.Dir, spec.File, dryRun, verbose)
 			}
 
 			created += created_
@@ -40,25 +42,22 @@ func syncSymlinks(agents []string, selectedAgents []string, dryRun, verbose bool
 		}
 	}
 
-	formatSyncSummary(len(agents), created, skipped, verbose, operations)
+	return created, skipped, operations
 }
 
 func createSymlink(dir, source, target string, dryRun, verbose bool) (int, int, string) {
 	sourcePath := filepath.Join(dir, source)
 	targetPath := filepath.Join(dir, target)
 
-	// Check if target already exists
 	info, err := os.Lstat(targetPath)
 	if err == nil {
-		// File exists, check if it's the right symlink or if we should overwrite
 		if shouldSkipOrOverwrite(targetPath, source, info, sourcePath, dryRun, verbose) {
 			if verbose {
 				return 0, 1, fmt.Sprintf("skipped: %s (already correct)", targetPath)
 			}
 			return 0, 1, ""
 		}
-		
-		// User wants to overwrite
+
 		if !dryRun {
 			os.Remove(targetPath)
 		}
@@ -71,7 +70,6 @@ func createSymlink(dir, source, target string, dryRun, verbose bool) (int, int, 
 		return 1, 0, ""
 	}
 
-	// Create relative symlink
 	if err := os.Symlink(source, targetPath); err != nil {
 		if verbose {
 			return 0, 1, fmt.Sprintf("error: %s (%v)", targetPath, err)
@@ -86,7 +84,6 @@ func createSymlink(dir, source, target string, dryRun, verbose bool) (int, int, 
 }
 
 func createSymlinkInDir(dir, source, subdir, target string, dryRun, verbose bool) (int, int, string) {
-	// Create subdirectory if needed
 	subdirPath := filepath.Join(dir, subdir)
 	if _, err := os.Stat(subdirPath); os.IsNotExist(err) {
 		if !dryRun {
@@ -96,20 +93,21 @@ func createSymlinkInDir(dir, source, subdir, target string, dryRun, verbose bool
 
 	sourcePath := filepath.Join(dir, source)
 	targetPath := filepath.Join(subdirPath, target)
-	symTarget := filepath.Join("..", "..", source)
 
-	// Check if target already exists
+	symTarget, err := filepath.Rel(subdirPath, sourcePath)
+	if err != nil {
+		symTarget = filepath.Join("..", source)
+	}
+
 	info, err := os.Lstat(targetPath)
 	if err == nil {
-		// File exists, check if it's the right symlink or if we should overwrite
 		if shouldSkipOrOverwrite(targetPath, symTarget, info, sourcePath, dryRun, verbose) {
 			if verbose {
 				return 0, 1, fmt.Sprintf("skipped: %s (already correct)", targetPath)
 			}
 			return 0, 1, ""
 		}
-		
-		// User wants to overwrite
+
 		if !dryRun {
 			os.Remove(targetPath)
 		}
@@ -122,8 +120,6 @@ func createSymlinkInDir(dir, source, subdir, target string, dryRun, verbose bool
 		return 1, 0, ""
 	}
 
-	// Create relative symlink back to AGENTS.md
-	// From .cursor/rules/ we need to go back 2 levels to reach AGENTS.md
 	if err := os.Symlink(symTarget, targetPath); err != nil {
 		if verbose {
 			return 0, 1, fmt.Sprintf("error: %s (%v)", targetPath, err)
@@ -140,26 +136,21 @@ func createSymlinkInDir(dir, source, subdir, target string, dryRun, verbose bool
 // shouldSkipOrOverwrite checks if an existing file matches the expected state
 // Returns true if we should skip (file is already correct), false if we should overwrite
 func shouldSkipOrOverwrite(targetPath, expectedTarget string, info os.FileInfo, sourcePath string, dryRun, verbose bool) bool {
-	// Check if it's a symlink
 	if info.Mode()&os.ModeSymlink != 0 {
-		// It's a symlink, check if it points to the right place
 		link, err := os.Readlink(targetPath)
 		if err == nil && link == expectedTarget {
-			return true // Symlink is correct
+			return true
 		}
-		// Symlink points to wrong place, ask to overwrite
 		if !dryRun && !askForConfirmation(targetPath, expectedTarget) {
-			return true // User said no, skip it
+			return true
 		}
-		return false // Overwrite
+		return false
 	}
 
-	// It's a regular file, compare content with source
 	sourceContent, err1 := os.ReadFile(sourcePath)
 	targetContent, err2 := os.ReadFile(targetPath)
-	
+
 	if err1 != nil || err2 != nil {
-		// Can't read files, ask user
 		if !dryRun && !askForConfirmation(targetPath, "source") {
 			return true
 		}
@@ -167,10 +158,9 @@ func shouldSkipOrOverwrite(targetPath, expectedTarget string, info os.FileInfo, 
 	}
 
 	if string(sourceContent) == string(targetContent) {
-		return true // Content matches, skip
+		return true
 	}
 
-	// Content differs, ask user
 	if !dryRun && !askForConfirmation(targetPath, "different version") {
 		return true
 	}
@@ -181,27 +171,26 @@ func shouldSkipOrOverwrite(targetPath, expectedTarget string, info os.FileInfo, 
 func askForConfirmation(targetPath, reason string) bool {
 	fmt.Printf("\nFile already exists: %s (%s)\n", targetPath, reason)
 	fmt.Print("Overwrite? (y/n): ")
-	
+
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return false
 	}
-	
+
 	response = strings.TrimSpace(strings.ToLower(response))
 	return response == "y" || response == "yes"
 }
 
-// deleteGuidelineFiles removes guideline files for specified agents
-func deleteGuidelineFiles(selectedAgents []string, dryRun, verbose bool) {
+// deleteManagedFiles removes files for specified agents
+func deleteManagedFiles(selectedAgents []string, cfg ProvidersConfig, sourceName string, specSelector func(ProviderConfig) *FileSpec, dryRun, verbose bool) {
 	var deleted int
 	var notFound int
 	var operations []string
 
-	allFiles := discoverAll()
+	allFiles := discoverAll(cfg, sourceName, specSelector)
 
 	for _, file := range allFiles {
-		// Check if this file matches any of the selected agents
 		shouldDelete := false
 		for _, agentName := range selectedAgents {
 			if strings.EqualFold(file.Agent, agentName) {

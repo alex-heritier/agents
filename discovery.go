@@ -14,69 +14,67 @@ var ignoreDir = map[string]bool{
 	".cursor":      true,
 }
 
-// discoverAgents finds all AGENTS.md files recursively from current directory
-func discoverAgents() []string {
-	var agents []string
+// discoverSources finds all source files recursively from current directory
+func discoverSources(sourceName string) []string {
+	var sources []string
 	cwd, _ := os.Getwd()
-	
+
 	filepath.Walk(cwd, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
 
-		// Skip ignored directories
 		if info.IsDir() && ignoreDir[info.Name()] {
 			return filepath.SkipDir
 		}
 
-		// Match AGENTS.md files
-		if !info.IsDir() && info.Name() == "AGENTS.md" {
-			agents = append(agents, path)
+		if !info.IsDir() && info.Name() == sourceName {
+			sources = append(sources, path)
 		}
 
 		return nil
 	})
 
-	return agents
+	return sources
 }
 
-// discoverAll finds all guideline files (AGENTS.md, CLAUDE.md, .cursor/rules/*)
-func discoverAll() []GuidelineFile {
-	var files []GuidelineFile
+// discoverAll finds all managed files (source plus provider-specific files)
+func discoverAll(cfg ProvidersConfig, sourceName string, specSelector func(ProviderConfig) *FileSpec) []ManagedFile {
+	var files []ManagedFile
 	cwd, _ := os.Getwd()
+	allowedDirs := allowedProviderDirs(cfg, specSelector)
 
 	filepath.Walk(cwd, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
 
-		// Skip ignored directories (but not .cursor since we need to discover cursor guidelines)
 		if info.IsDir() {
-			if ignoreDir[info.Name()] && info.Name() != ".cursor" {
+			if ignoreDir[info.Name()] && !allowedDirs[info.Name()] {
 				return filepath.SkipDir
 			}
-		}
-
-		if info.IsDir() {
 			return nil
 		}
 
 		dir := filepath.Dir(path)
 		filename := info.Name()
 
-		// Determine agent type
 		var agent string
-		if filename == "AGENTS.md" {
-			agent = "AGENTS"
+		if filename == sourceName {
+			agent = strings.TrimSuffix(strings.ToUpper(sourceName), ".MD")
 		} else {
-			// Check if this matches any agent configuration
-			for agentName, cfg := range SupportedAgents {
-				if filename == cfg.File {
-					// Check if it's in the right directory (if specified)
-					if cfg.Dir == "" {
+			for agentName, provider := range cfg.Providers {
+				spec := specSelector(provider)
+				if spec == nil {
+					continue
+				}
+				if filename == spec.File {
+					if spec.Dir == "" {
 						agent = strings.ToUpper(agentName)
 						break
-					} else if strings.Contains(path, cfg.Dir) {
+					}
+
+					if strings.Contains(path, spec.Dir) {
 						agent = strings.ToUpper(agentName)
 						break
 					}
@@ -87,10 +85,9 @@ func discoverAll() []GuidelineFile {
 			}
 		}
 
-		// Check if symlink
 		isSymlink := isSymlink(path)
 
-		files = append(files, GuidelineFile{
+		files = append(files, ManagedFile{
 			Path:      path,
 			Dir:       dir,
 			Agent:     agent,
@@ -105,53 +102,58 @@ func discoverAll() []GuidelineFile {
 	return files
 }
 
+func allowedProviderDirs(cfg ProvidersConfig, specSelector func(ProviderConfig) *FileSpec) map[string]bool {
+	allowed := map[string]bool{}
+	for _, provider := range cfg.Providers {
+		spec := specSelector(provider)
+		if spec == nil || spec.Dir == "" {
+			continue
+		}
+
+		parts := strings.Split(spec.Dir, string(filepath.Separator))
+		if len(parts) > 0 {
+			allowed[parts[0]] = true
+		}
+	}
+	return allowed
+}
+
 // globalGuidelinePaths returns the standard locations for global agent guideline files
-func globalGuidelinePaths() []string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return []string{} // Return empty if we can't get home directory
+func globalGuidelinePaths(cfg ProvidersConfig) []string {
+	var paths []string
+	for _, raw := range cfg.GlobalGuidelines {
+		paths = append(paths, expandHomePath(raw))
 	}
-	
-	return []string{
-		filepath.Join(homeDir, ".claude", "CLAUDE.md"),
-		filepath.Join(homeDir, ".codex", "AGENTS.md"),
-		filepath.Join(homeDir, ".gemini", "GEMINI.md"),
-		filepath.Join(homeDir, ".config", "opencode", "AGENTS.md"),
-		filepath.Join(homeDir, ".config", "amp", "AGENTS.md"),
-		filepath.Join(homeDir, ".config", "AGENTS.md"),
-		filepath.Join(homeDir, "AGENTS.md"),
-	}
+	return paths
 }
 
 // discoverGlobalOnly finds only user/system-wide agent guideline files
-func discoverGlobalOnly() []GuidelineFile {
-	var files []GuidelineFile
-	
-	globalLocations := globalGuidelinePaths()
+func discoverGlobalOnly(cfg ProvidersConfig) []ManagedFile {
+	var files []ManagedFile
+
+	globalLocations := globalGuidelinePaths(cfg)
 	if len(globalLocations) == 0 {
-		return files // If we can't get home directory, return empty
+		return files
 	}
-	
+
 	for _, location := range globalLocations {
 		if fileExists(location) {
 			info, err := os.Stat(location)
 			if err != nil {
 				continue
 			}
-			
+
 			filename := filepath.Base(location)
 			dir := filepath.Dir(location)
-			
-			// Determine agent type
-			agent := inferAgentFromFilename(filename)
+
+			agent := inferProviderFromFilename(cfg, filename)
 			if agent == "" {
 				continue
 			}
-			
-			// Check if symlink
+
 			isSymlink := isSymlink(location)
-			
-			files = append(files, GuidelineFile{
+
+			files = append(files, ManagedFile{
 				Path:      location,
 				Dir:       dir,
 				Agent:     agent,
@@ -161,27 +163,29 @@ func discoverGlobalOnly() []GuidelineFile {
 			})
 		}
 	}
-	
+
 	return files
 }
 
-// inferAgentFromFilename determines the agent type from a filename
-func inferAgentFromFilename(filename string) string {
-	if filename == "AGENTS.md" {
-		return "AGENTS"
+// inferProviderFromFilename determines the provider type from a filename
+func inferProviderFromFilename(cfg ProvidersConfig, filename string) string {
+	if filename == cfg.Sources.Guidelines {
+		return strings.TrimSuffix(strings.ToUpper(filename), ".MD")
 	}
-	
-	// Check if this matches any agent configuration
-	for agentName, cfg := range SupportedAgents {
-		if filename == cfg.File {
+
+	for agentName, provider := range cfg.Providers {
+		spec := provider.Guidelines
+		if spec == nil {
+			continue
+		}
+		if filename == spec.File {
 			return strings.ToUpper(agentName)
 		}
 	}
-	
+
 	return ""
 }
 
-// fileExists checks if a file exists and is not a directory
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -196,4 +200,17 @@ func isSymlink(path string) bool {
 		return false
 	}
 	return info.Mode()&os.ModeSymlink != 0
+}
+
+func expandHomePath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+
+	return filepath.Join(home, strings.TrimPrefix(path, "~/"))
 }
