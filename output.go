@@ -114,3 +114,89 @@ func formatSyncSummary(found, created, skipped int, verbose bool, operations []s
 		}
 	}
 }
+
+// formatCommandList formats and displays a list of command files
+func formatCommandList(files []CommandFile, verbose bool) {
+	if len(files) == 0 {
+		fmt.Println("No command files found.")
+		return
+	}
+
+	// Print header
+	fmt.Printf("%-30s %-20s %-15s %-10s\n", "Directory", "Command", "Provider", "Tokens")
+	fmt.Println(strings.Repeat("-", 75))
+
+	cwd, _ := filepath.Abs(".")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = ""
+	}
+
+	// Determine if we should show paths relative to home directory
+	showRelativeToHome := false
+	if len(files) > 0 && homeDir != "" {
+		standardGlobalPatterns := []string{
+			filepath.Join(homeDir, ".claude"),
+			filepath.Join(homeDir, ".cursor"),
+			filepath.Join(homeDir, ".config"),
+		}
+
+		allFilesAreGlobal := true
+		for _, f := range files {
+			isGlobal := false
+			for _, pattern := range standardGlobalPatterns {
+				if strings.HasPrefix(f.Dir, pattern) {
+					isGlobal = true
+					break
+				}
+			}
+			if !isGlobal {
+				allFilesAreGlobal = false
+				break
+			}
+		}
+
+		if allFilesAreGlobal {
+			showRelativeToHome = true
+		}
+	}
+
+	for _, f := range files {
+		var displayDir string
+
+		if showRelativeToHome && homeDir != "" && strings.HasPrefix(f.Dir, homeDir) {
+			relDir, err := filepath.Rel(homeDir, f.Dir)
+			if err != nil || relDir == "." {
+				displayDir = "~/"
+			} else {
+				displayDir = "~/" + relDir
+			}
+		} else {
+			relDir, err := filepath.Rel(cwd, f.Dir)
+			if err != nil {
+				displayDir = f.Dir
+			} else if relDir == "." {
+				displayDir = "./"
+			} else if !strings.HasPrefix(relDir, ".") {
+				displayDir = "./" + relDir
+			} else {
+				displayDir = relDir + "/"
+			}
+		}
+
+		cmdName := f.Name
+		var tokensStr string
+		if f.IsSymlink {
+			cmdName = "*" + cmdName
+			tokensStr = "-"
+		} else {
+			tokens := estimateTokens(f.Size)
+			tokensStr = strconv.FormatInt(tokens, 10)
+		}
+		fmt.Printf("%-30s %-20s %-15s %-10s\n", displayDir, cmdName, f.Provider, tokensStr)
+	}
+
+	if verbose {
+		fmt.Printf("\nTotal: %d command files found\n", len(files))
+	}
+}

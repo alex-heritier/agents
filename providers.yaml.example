@@ -1,0 +1,54 @@
+# Example User Configuration for Agent Providers
+#
+# This file demonstrates how to extend or override the default provider configuration.
+# Place this file at ~/.config/agents/providers.yaml (or $XDG_CONFIG_HOME/agents/providers.yaml)
+#
+# The configuration in this file will be merged with the default configuration,
+# allowing you to:
+# - Add new custom agent providers
+# - Override default file paths
+# - Customize slash command conventions
+
+version: "1.0"
+
+providers:
+  # Example: Override Claude configuration
+  # claude:
+  #   name: "claude"
+  #   display_name: "Claude Code (Custom)"
+  #   guideline:
+  #     file: "CLAUDE.md"
+  #     dir: ""
+  #     source: "AGENTS.md"
+  #     global_paths:
+  #       - "~/.claude/CLAUDE.md"
+  #       - "~/.config/claude/CLAUDE.md"  # Add custom global path
+  #   commands:
+  #     dir: ".claude/commands"
+  #     extension: ".md"
+  #     source_dir: "COMMANDS"
+  #     global_paths:
+  #       - "~/.claude/commands"
+
+  # Example: Add a custom agent provider
+  # myprovider:
+  #   name: "myprovider"
+  #   display_name: "My Custom Agent"
+  #   guideline:
+  #     file: "MYPROVIDER.md"
+  #     dir: ""
+  #     source: "AGENTS.md"
+  #     global_paths:
+  #       - "~/.myprovider/MYPROVIDER.md"
+  #   commands:
+  #     dir: ".myprovider/commands"
+  #     extension: ".md"
+  #     source_dir: "COMMANDS"
+  #     global_paths:
+  #       - "~/.myprovider/commands"
+
+  # Example: Override Cursor to use a different directory structure
+  # cursor:
+  #   commands:
+  #     dir: ".cursor/custom-commands"  # Use custom directory
+  #     extension: ".txt"  # Use .txt instead of .md

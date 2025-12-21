@@ -37,16 +37,20 @@ Then use `agents` from anywhere.
 
 ## Usage
 
-### List guideline files
+### Guideline Files
+
+#### List guideline files
 
 Discover all guideline files in your project:
 
 ```bash
 agents list
 agents list --verbose
+agents list --global  # Show only user/system-wide files
+agents list --claude  # Filter by specific agent
 ```
 
-### Sync guideline files
+#### Sync guideline files
 
 Create symlinks for specified agents from all AGENTS.md files in your project:
 
@@ -61,7 +65,7 @@ agents sync --claude --cursor --dry-run
 agents sync --claude --cursor --verbose
 ```
 
-### Remove guideline files
+#### Remove guideline files
 
 Delete guideline files for specific agents:
 
@@ -74,6 +78,47 @@ agents rm --cursor --gemini --qwen
 
 # Preview deletions
 agents rm --claude --dry-run --verbose
+```
+
+### Slash Commands
+
+#### List command files
+
+Discover all slash command files in your project:
+
+```bash
+agents list-commands
+agents list-cmds  # Alias
+agents list-commands --verbose
+agents list-commands --global  # Show only user/system-wide commands
+agents list-commands --claude  # Filter by specific agent
+```
+
+#### Sync command files
+
+Create command symlinks for specified agents from all COMMANDS directories:
+
+```bash
+# Create symlinks in .claude/commands/ from COMMANDS/
+agents sync-commands --claude
+
+# Sync for multiple agents
+agents sync-commands --claude --cursor
+
+# Preview changes without applying
+agents sync-commands --claude --dry-run --verbose
+```
+
+#### Remove command files
+
+Delete command files for specific agents:
+
+```bash
+# Delete all Claude command files
+agents rm-commands --claude
+
+# Delete multiple agents
+agents rm-commands --cursor --gemini --dry-run
 ```
 
 ## Supported Agents
@@ -173,10 +218,38 @@ For comprehensive information about how different AI agents use guideline files,
 - Auto-generation and external file referencing
 - Best practices for cross-agent compatibility
 
+## Configuration
+
+### Provider Configuration
+
+All agent provider configurations are defined in `providers.yaml`. This file specifies:
+- Guideline file names and locations for each agent
+- Slash command directory structure
+- Global/user-level file paths
+
+Users can extend or override the default configuration by creating `~/.config/agents/providers.yaml` (or `$XDG_CONFIG_HOME/agents/providers.yaml`).
+
+### Slash Commands
+
+The tool now supports syncing slash commands across different AI agents. Create a `COMMANDS` directory in your project with markdown files for each command, then use `agents sync-commands` to create symlinks in agent-specific command directories.
+
+Example:
+```bash
+# Create a COMMANDS directory with your slash commands
+mkdir COMMANDS
+echo "# Review Code\nReview changes and provide feedback." > COMMANDS/review.md
+
+# Sync to Claude's command directory
+agents sync-commands --claude
+
+# List all command files
+agents list-commands
+```
+
 ## TODO
 
-- Support global/system-wide agents files
-- Support custom slash commands listing and syncing
+- Support global/system-wide agents files (✅ DONE)
+- Support custom slash commands listing and syncing (✅ DONE)
 
 ## License
 

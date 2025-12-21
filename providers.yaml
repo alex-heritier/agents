@@ -1,0 +1,154 @@
+# Agent Providers Configuration
+# This file defines how different AI coding agents use guideline files and slash commands.
+# Users can extend this by creating ~/.config/agents/providers.yaml
+
+version: "1.0"
+
+providers:
+  claude:
+    name: "claude"
+    display_name: "Claude Code"
+
+    # Guideline file configuration
+    guideline:
+      file: "CLAUDE.md"
+      dir: ""  # empty means project root
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.claude/CLAUDE.md"
+
+    # Slash commands configuration
+    commands:
+      dir: ".claude/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"  # directory containing source command files
+      global_paths:
+        - "~/.claude/commands"
+
+  cursor:
+    name: "cursor"
+    display_name: "Cursor"
+
+    guideline:
+      file: "agents.md"
+      dir: ".cursor/rules"
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.cursor/rules"
+
+    commands:
+      dir: ".cursor/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.cursor/commands"
+
+  copilot:
+    name: "copilot"
+    display_name: "GitHub Copilot"
+
+    guideline:
+      file: "COPILOT.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.copilot/COPILOT.md"
+
+    # Copilot doesn't have native slash commands, but we'll support a convention
+    commands:
+      dir: ".copilot/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.copilot/commands"
+
+  gemini:
+    name: "gemini"
+    display_name: "Google Gemini CLI"
+
+    guideline:
+      file: "GEMINI.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.gemini/GEMINI.md"
+
+    commands:
+      dir: ".gemini/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.gemini/commands"
+
+  qwen:
+    name: "qwen"
+    display_name: "Qwen Code CLI"
+
+    guideline:
+      file: "QWEN.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.qwen/QWEN.md"
+
+    commands:
+      dir: ".qwen/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.qwen/commands"
+
+  warp:
+    name: "warp"
+    display_name: "Warp Terminal"
+
+    guideline:
+      file: "WARP.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.warp/rules/WARP.md"
+
+    commands:
+      dir: ".warp/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.warp/commands"
+
+  amp:
+    name: "amp"
+    display_name: "Amp Code"
+
+    guideline:
+      file: "AGENTS.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.config/amp/AGENTS.md"
+        - "~/.config/AGENTS.md"
+
+    commands:
+      dir: ".amp/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.config/amp/commands"
+
+  opencode:
+    name: "opencode"
+    display_name: "OpenCode"
+
+    guideline:
+      file: "AGENTS.md"
+      dir: ""
+      source: "AGENTS.md"
+      global_paths:
+        - "~/.config/opencode/AGENTS.md"
+
+    commands:
+      dir: ".opencode/commands"
+      extension: ".md"
+      source_dir: "COMMANDS"
+      global_paths:
+        - "~/.config/opencode/commands"

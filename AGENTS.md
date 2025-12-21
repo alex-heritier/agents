@@ -1,17 +1,27 @@
 # Agent Guidelines Manager CLI - Development Guide
 
 ## Purpose
-Sync AGENTS.md files (single source of truth) across project hierarchy by creating symlinks to agent-specific guideline files.
+Sync AGENTS.md files (single source of truth) and COMMANDS directories across project hierarchy by creating symlinks to agent-specific guideline files and slash commands.
 
 ## Core Commands
+
+### Guideline Files
 - `list` - Discover and display all guideline files (AGENTS.md, CLAUDE.md, .cursor/rules/*, etc.) with metadata
 - `sync [flags]` - Find all AGENTS.md files recursively from current directory and create symlinks
+- `rm [flags]` - Delete guideline files for specified agents
+
+### Slash Commands
+- `list-commands` (alias: `list-cmds`) - Discover and display all slash command files
+- `sync-commands` (alias: `sync-cmds`) - Find all COMMANDS directories and create command symlinks
+- `rm-commands` (alias: `rm-cmds`) - Delete command files for specified agents
 
 ## Flags
-- `--claude` - Create CLAUDE.md symlinks pointing to AGENTS.md
-- `--cursor` - Create .cursor/rules/agents.md symlinks (creates .cursor/rules/ dir if needed)
+- `--claude` - Create CLAUDE.md symlinks pointing to AGENTS.md / Create .claude/commands symlinks
+- `--cursor` - Create .cursor/rules/agents.md symlinks / Create .cursor/commands symlinks
+- `--copilot`, `--gemini`, `--qwen`, `--warp`, `--amp`, `--opencode` - Support for other agents
 - `--dry-run` - Show what would be created without making changes
 - `--verbose` - Show detailed output of all operations
+- `--global` or `-g` - Show only user/system-wide files
 
 ## Discovery Rules
 1. Search recursively from current directory downward
@@ -34,18 +44,45 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 - Show summary: X AGENTS.md files found, Y symlinks created, Z skipped
 - With `--verbose`: list each operation (created/skipped and path)
 
+## Configuration System
+
+### Provider Configuration File
+All agent configurations are defined in `providers.yaml`:
+- Guideline file names and locations
+- Slash command directory structures
+- Global/user-level file paths
+
+### XDG Configuration Support
+Users can extend or override the default configuration by creating:
+- `~/.config/agents/providers.yaml` (or `$XDG_CONFIG_HOME/agents/providers.yaml`)
+
+This allows customization of:
+- Custom agent providers
+- Override default file paths
+- Add new slash command conventions
+
 ## Development Guidelines
-- Minimal dependencies (prefer stdlib where possible)
+- Minimal dependencies (prefer stdlib where possible, currently only uses gopkg.in/yaml.v3)
 - Graceful degradation (CLI works even if some files are missing/malformed)
 - Clear error messages (always show which file caused an issue)
 - No auto-modifications without explicit `--force` flag
+- Provider configurations are loaded from embedded YAML and merged with user overrides
 
 ## Quick Start (Development)
-1. Modify code files (main.go, discovery.go, symlink.go, output.go, agents.go)
+1. Modify code files:
+   - `main.go` - Command handling and CLI
+   - `config.go` - Provider configuration loading
+   - `agents.go` - Agent/provider management
+   - `discovery.go` - File discovery logic
+   - `commands.go` - Slash commands handling
+   - `symlink.go` - Symlink creation logic
+   - `output.go` - Output formatting
+   - `providers.yaml` - Agent provider definitions
 2. Run `go build` to compile
 3. Test with `./agents <command>`
-4. Add new agent types in agents.go under SupportedAgents map
+4. Add new agent types in providers.yaml (not hardcoded in Go files)
+5. User overrides go in ~/.config/agents/providers.yaml
 
 ## Agent Configuration Reference
 
-For detailed information about how different AI agents use guideline files, see [agents-conventions.md](agents-conventions.md). This comprehensive guide covers configuration options, hierarchical placement, and best practices for Claude, Cursor, Copilot, Gemini, Qwen, and other agents.
+For detailed information about how different AI agents use guideline files and slash commands, see [agents-conventions.md](agents-conventions.md). This comprehensive guide covers configuration options, hierarchical placement, and best practices for Claude, Cursor, Copilot, Gemini, Qwen, and other agents.
