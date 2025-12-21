@@ -17,20 +17,25 @@ This tool treats `AGENTS.md` as the single source of truth and automatically cre
 
 ## Installation
 
+### Prerequisites
+
+- [Bun](https://bun.sh/) v1.0 or higher
+
 ### Build from source
 
 ```bash
 git clone https://github.com/alex-heritier/agents.git
 cd agents
-go build
+bun run build
 ```
 
-This creates an `agents` binary in the current directory.
+This creates a `dist/main.js` binary.
 
 ### Add to PATH
 
 ```bash
-mv agents /usr/local/bin/
+# Create a symlink in your PATH
+ln -s "$(pwd)/dist/main.js" /usr/local/bin/agents
 ```
 
 Then use `agents` from anywhere.
@@ -196,18 +201,20 @@ agents rm --help
 
 ## Tech Stack
 
-- **Language:** Go
-- **Dependencies:** None (standard library only)
-- **Binary size:** ~5MB single executable
-- **Platforms:** macOS, Linux, Windows
+- **Language:** TypeScript
+- **Runtime:** Bun
+- **Dependencies:** Zero external dependencies (uses built-in YAML parser)
+- **Binary size:** ~34KB bundled JavaScript
+- **Platforms:** macOS, Linux, Windows (with Bun installed)
 
 ## Contributing
 
 Contributions welcome! To add a new agent type:
 
-1. Edit `agents.go` and add to `SupportedAgents` map
-2. Run `go build && go test` (if tests exist)
-3. Submit a PR
+1. Edit `providers.yaml` and add the new provider configuration
+2. Run `bun run build` to rebuild
+3. Test with `bun run dist/main.js`
+4. Submit a PR
 
 ## Agent Configuration Reference
 

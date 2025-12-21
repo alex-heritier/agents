@@ -62,7 +62,7 @@ This allows customization of:
 - Add new slash command conventions
 
 ## Development Guidelines
-- Minimal dependencies (prefer stdlib where possible, currently only uses gopkg.in/yaml.v3)
+- Minimal dependencies (zero external dependencies, uses built-in YAML parser)
 - Graceful degradation (CLI works even if some files are missing/malformed)
 - Clear error messages (always show which file caused an issue)
 - No auto-modifications without explicit `--force` flag
@@ -70,17 +70,17 @@ This allows customization of:
 
 ## Quick Start (Development)
 1. Modify code files:
-   - `main.go` - Command handling and CLI
-   - `config.go` - Provider configuration loading
-   - `agents.go` - Agent/provider management
-   - `discovery.go` - File discovery logic
-   - `commands.go` - Slash commands handling
-   - `symlink.go` - Symlink creation logic
-   - `output.go` - Output formatting
+   - `src/main.ts` - Command handling and CLI
+   - `src/config.ts` - Provider configuration loading
+   - `src/agents.ts` - Agent/provider management
+   - `src/discovery.ts` - File discovery logic
+   - `src/commands.ts` - Slash commands handling
+   - `src/symlink.ts` - Symlink creation logic
+   - `src/output.ts` - Output formatting
    - `providers.yaml` - Agent provider definitions
-2. Run `go build` to compile
-3. Test with `./agents <command>`
-4. Add new agent types in providers.yaml (not hardcoded in Go files)
+2. Run `bun run build` to compile
+3. Test with `bun run dist/main.js <command>` or `bun run src/main.ts <command>` for dev
+4. Add new agent types in providers.yaml (not hardcoded in TypeScript files)
 5. User overrides go in ~/.config/agents/providers.yaml
 
 ## Agent Configuration Reference
