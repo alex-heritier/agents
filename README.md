@@ -22,18 +22,19 @@ This tool treats `AGENTS.md` as the single source of truth and automatically cre
 ```bash
 git clone https://github.com/alex-heritier/agents.git
 cd agents
-go build
+bun install
+bun run build
 ```
 
-This creates an `agents` binary in the current directory.
+This creates a `dist/index.js` bundle.
 
 ### Add to PATH
 
 ```bash
-mv agents /usr/local/bin/
+ln -s \"$PWD/src/index.ts\" /usr/local/bin/agents
 ```
 
-Then use `agents` from anywhere.
+Then use `agents` from anywhere (requires Bun installed).
 
 ## Usage
 
@@ -192,17 +193,16 @@ agents rm --help
 
 ## Tech Stack
 
-- **Language:** Go
+- **Language:** TypeScript (Bun runtime)
 - **Dependencies:** None (standard library only)
-- **Binary size:** ~5MB single executable
-- **Platforms:** macOS, Linux, Windows
+- **Platforms:** macOS, Linux, Windows (Bun-supported)
 
 ## Contributing
 
 Contributions welcome! To add a new agent type:
 
-1. Edit `agents.go` and add to `SupportedAgents` map
-2. Run `go build && go test` (if tests exist)
+1. Edit `providers.json` and add to the `providers` map
+2. Run `bun run build` (and tests if added)
 3. Submit a PR
 
 ## Agent Configuration Reference
