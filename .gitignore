@@ -1,4 +1,7 @@
 agents
+node_modules/
+dist/
+bun.lockb
 *.o
 *.a
 *.so
