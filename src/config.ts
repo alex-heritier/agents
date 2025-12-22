@@ -18,6 +18,10 @@ export function getProviderConfig(): ProvidersConfig {
   return cachedConfig;
 }
 
+export function clearConfigCache() {
+  cachedConfig = null;
+}
+
 function findConfigPath(): string {
   const localPath = pathJoin(process.cwd(), "providers.json");
   if (existsSync(localPath)) {

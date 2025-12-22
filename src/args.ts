@@ -10,6 +10,10 @@ export function parseArgs(argv: string[], allowedFlags: Set<string>): ParsedArgs
   let help = false;
 
   for (const arg of argv) {
+    if (typeof arg !== "string" || arg.trim() === "") {
+      continue;
+    }
+
     if (arg === "--help" || arg === "-h") {
       help = true;
       continue;

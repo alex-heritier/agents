@@ -162,6 +162,10 @@ function shouldSkipOrOverwrite(
   sourcePath: string,
   dryRun: boolean,
 ) {
+  if (!exists(targetPath)) {
+    return false;
+  }
+
   if (isSymlink) {
     try {
       const link = readlinkSync(targetPath);
@@ -197,7 +201,11 @@ function shouldSkipOrOverwrite(
 }
 
 function askForConfirmation(targetPath: string, reason: string): boolean {
-  process.stdout.write(`\nFile already exists: ${targetPath} (${reason})\nOverwrite? (y/n): `);
+  try {
+    process.stdout.write(`\nFile already exists: ${targetPath} (${reason})\nOverwrite? (y/n): `);
+  } catch {
+    return false;
+  }
   const response = readLine();
   if (!response) {
     return false;
@@ -207,8 +215,16 @@ function askForConfirmation(targetPath: string, reason: string): boolean {
 }
 
 function readLine(): string | null {
-  const data = readFileSync(0, "utf-8");
-  return data.split(/\r?\n/)[0] ?? null;
+  try {
+    const data = readFileSync(0, "utf-8");
+    if (!data) {
+      return null;
+    }
+    const line = data.split(/\r?\n/)[0];
+    return line === undefined ? null : line;
+  } catch {
+    return null;
+  }
 }
 
 function safeReadFile(path: string): string | null {
