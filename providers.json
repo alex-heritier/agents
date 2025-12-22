@@ -1,0 +1,55 @@
+{
+  "sources": {
+    "guidelines": "AGENTS.md",
+    "commands": "COMMANDS.md"
+  },
+  "globalGuidelines": [
+    "~/.claude/CLAUDE.md",
+    "~/.codex/AGENTS.md",
+    "~/.gemini/GEMINI.md",
+    "~/.config/opencode/AGENTS.md",
+    "~/.config/amp/AGENTS.md",
+    "~/.config/AGENTS.md",
+    "~/AGENTS.md"
+  ],
+  "providers": {
+    "claude": {
+      "guidelines": {
+        "file": "CLAUDE.md",
+        "dir": ""
+      },
+      "commands": {
+        "file": "commands.md",
+        "dir": ".claude/commands"
+      }
+    },
+    "cursor": {
+      "guidelines": {
+        "file": "agents.md",
+        "dir": ".cursor/rules"
+      },
+      "commands": {
+        "file": "commands.md",
+        "dir": ".cursor/commands"
+      }
+    },
+    "copilot": {
+      "guidelines": {
+        "file": "COPILOT.md",
+        "dir": ""
+      }
+    },
+    "gemini": {
+      "guidelines": {
+        "file": "GEMINI.md",
+        "dir": ""
+      }
+    },
+    "qwen": {
+      "guidelines": {
+        "file": "QWEN.md",
+        "dir": ""
+      }
+    }
+  }
+}
