@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { getProviderConfig } from "./config";
-import { discoverAll, discoverGlobalOnly, discoverSources } from "./discovery";
-import { formatList, formatSyncSummary } from "./output";
-import { deleteManagedFiles, syncSymlinks } from "./symlink";
+import { discoverAll, discoverGlobalOnly, discoverSkills, discoverSourceSkills, discoverSources } from "./discovery";
+import { formatList, formatSkillsList, formatSkillsSyncSummary, formatSyncSummary } from "./output";
+import { deleteManagedFiles, syncSkills, syncSymlinks } from "./symlink";
 import type { FileSpec, ProviderConfig, ProvidersConfig } from "./types";
 import { parseArgs } from "./args";
+import { pathJoin } from "./paths";
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -31,6 +32,12 @@ switch (command) {
     break;
   case "rm-commands":
     cmdRmCommands(args);
+    break;
+  case "list-skills":
+    cmdListSkills(args);
+    break;
+  case "sync-skills":
+    cmdSyncSkills(args);
     break;
   case "help":
   case "-h":
@@ -121,6 +128,15 @@ Commands:
   const help5 = `                             --dry-run    Show what would be deleted without making changes
                              --verbose    Show detailed output of all operations
 
+  list-skills              Discover and display all Claude Code skills
+                           Flags:
+                             --verbose    Show detailed output including metadata
+
+  sync-skills              Sync skills from source directory to .claude/skills
+                           Flags:
+                             --dry-run    Show what would be synced without making changes
+                             --verbose    Show detailed output of all operations
+
   help                     Show this help message
 
 Examples:
@@ -137,6 +153,10 @@ Examples:
   agents list-commands --claude
   agents sync-commands --claude --cursor
   agents rm-commands --claude
+  agents list-skills
+  agents list-skills --verbose
+  agents sync-skills
+  agents sync-skills --dry-run --verbose
 `;
   process.stdout.write(help5);
 }
@@ -303,6 +323,41 @@ function cmdRmCommands(argv: string[]) {
   const selectedAgents = ensureProvidersSelected(cfg, selection.available, selection.selected);
 
   deleteManagedFiles(selectedAgents, cfg, cfg.sources.commands, (provider) => provider.commands, dryRun, verbose);
+}
+
+function cmdListSkills(argv: string[]) {
+  const allowedFlags = new Set(["--verbose"]);
+  const parsed = parseArgs(argv, allowedFlags);
+  if (parsed.help) {
+    printHelp();
+    process.exit(0);
+  }
+  ensureNoUnknownFlags("list-skills", parsed.unknown);
+
+  const verbose = parsed.flags.has("--verbose");
+  const skills = discoverSkills();
+  formatSkillsList(skills, verbose);
+}
+
+function cmdSyncSkills(argv: string[]) {
+  const cfg = getProviderConfig();
+  const allowedFlags = new Set(["--dry-run", "--verbose"]);
+  const parsed = parseArgs(argv, allowedFlags);
+  if (parsed.help) {
+    printHelp();
+    process.exit(0);
+  }
+  ensureNoUnknownFlags("sync-skills", parsed.unknown);
+
+  const dryRun = parsed.flags.has("--dry-run");
+  const verbose = parsed.flags.has("--verbose");
+
+  const sourceSkillDirs = discoverSourceSkills(cfg.sources.skills);
+  const targetDir = pathJoin(process.cwd(), ".claude", "skills");
+
+  const { created, skipped, operations } = syncSkills(sourceSkillDirs, targetDir, dryRun, verbose);
+
+  formatSkillsSyncSummary(sourceSkillDirs.length, created, skipped, verbose, operations);
 }
 
 function getProviderNames(cfg: ProvidersConfig, specSelector: (provider: ProviderConfig) => FileSpec | undefined): string[] {

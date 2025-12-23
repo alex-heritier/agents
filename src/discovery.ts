@@ -1,6 +1,6 @@
-import { lstatSync, readdirSync, statSync } from "node:fs";
-import type { FileSpec, ManagedFile, ProviderConfig, ProvidersConfig } from "./types";
-import { expandHomePath, pathBasename, pathDirname, pathJoin } from "./paths";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import type { FileSpec, ManagedFile, ProviderConfig, ProvidersConfig, SkillFile, SkillMetadata } from "./types";
+import { expandHomePath, getHomeDir, pathBasename, pathDirname, pathJoin } from "./paths";
 
 const ignoreDir = new Set(["node_modules", ".git", "dist", "build", ".cursor"]);
 
@@ -171,4 +171,134 @@ function allowedProviderDirs(
 
 function globalGuidelinePaths(cfg: ProvidersConfig): string[] {
   return (cfg.globalGuidelines ?? []).map((path) => expandHomePath(path));
+}
+
+// Skill discovery functions
+export function discoverSkills(): SkillFile[] {
+  const skills: SkillFile[] = [];
+
+  // Discover global skills (~/.claude/skills/)
+  const globalSkillsDir = pathJoin(getHomeDir(), ".claude", "skills");
+  if (existsSync(globalSkillsDir)) {
+    const globalSkills = discoverSkillsInDir(globalSkillsDir, "global");
+    skills.push(...globalSkills);
+  }
+
+  // Discover project skills (.claude/skills/)
+  const projectSkillsDir = pathJoin(process.cwd(), ".claude", "skills");
+  if (existsSync(projectSkillsDir)) {
+    const projectSkills = discoverSkillsInDir(projectSkillsDir, "project");
+    skills.push(...projectSkills);
+  }
+
+  return skills;
+}
+
+export function discoverSourceSkills(sourceDirName: string): string[] {
+  const cwd = process.cwd();
+  const skillDirs: string[] = [];
+
+  walk(cwd, (path, entry) => {
+    if (entry.isDirectory() && ignoreDir.has(entry.name)) {
+      return "skip";
+    }
+    // Skip .claude directory to avoid treating .claude/skills as a source
+    if (entry.isDirectory() && entry.name === ".claude") {
+      return "skip";
+    }
+    if (entry.isDirectory() && entry.name === sourceDirName) {
+      // Found a source skills directory, scan for skill subdirectories
+      const subdirs = readdirSync(path, { withFileTypes: true });
+      for (const subdir of subdirs) {
+        if (subdir.isDirectory()) {
+          const skillFile = pathJoin(path, subdir.name, "SKILL.md");
+          if (existsSync(skillFile)) {
+            skillDirs.push(pathJoin(path, subdir.name));
+          }
+        }
+      }
+      return "skip";
+    }
+    return "continue";
+  });
+
+  return skillDirs;
+}
+
+function discoverSkillsInDir(dir: string, location: "global" | "project"): SkillFile[] {
+  const skills: SkillFile[] = [];
+
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const skillName = entry.name;
+      const skillPath = pathJoin(dir, skillName);
+      const skillFile = pathJoin(skillPath, "SKILL.md");
+
+      if (!existsSync(skillFile)) {
+        continue;
+      }
+
+      const { metadata, error } = parseSkillMetadata(skillFile);
+
+      skills.push({
+        path: skillFile,
+        dir: skillPath,
+        skillName,
+        location,
+        metadata,
+        error,
+      });
+    }
+  } catch (err) {
+    // Directory doesn't exist or can't be read
+  }
+
+  return skills;
+}
+
+function parseSkillMetadata(skillFile: string): { metadata?: SkillMetadata; error?: string } {
+  try {
+    const content = readFileSync(skillFile, "utf-8");
+    const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+
+    if (!frontmatterMatch) {
+      return { error: "No frontmatter found" };
+    }
+
+    const frontmatter = frontmatterMatch[1];
+    const metadata: Partial<SkillMetadata> = {};
+
+    for (const line of frontmatter.split("\n")) {
+      const match = line.match(/^(\w+(?:-\w+)*):\s*(.+)$/);
+      if (!match) {
+        continue;
+      }
+
+      const [, key, value] = match;
+      const trimmedValue = value.trim();
+
+      if (key === "name") {
+        metadata.name = trimmedValue;
+      } else if (key === "description") {
+        metadata.description = trimmedValue;
+      } else if (key === "license") {
+        metadata.license = trimmedValue;
+      } else if (key === "allowed-tools") {
+        metadata.allowedTools = trimmedValue;
+      }
+    }
+
+    if (!metadata.name || !metadata.description) {
+      return { error: "Missing required fields (name, description)" };
+    }
+
+    return { metadata: metadata as SkillMetadata };
+  } catch (err) {
+    return { error: `Failed to parse: ${err}` };
+  }
 }

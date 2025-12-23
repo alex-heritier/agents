@@ -1,4 +1,4 @@
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
 import type { FileSpec, ProviderConfig, ProvidersConfig } from "./types";
 import { discoverAll } from "./discovery";
 import { pathBasename, pathDirname, pathJoin, pathRelative } from "./paths";
@@ -256,4 +256,57 @@ function formatRmSummary(deleted: number, notFound: number, verbose: boolean, op
       console.log(op);
     }
   }
+}
+
+// Skill syncing functions
+export function syncSkills(
+  sourceSkillDirs: string[],
+  targetBaseDir: string,
+  dryRun: boolean,
+  verbose: boolean,
+): { created: number; skipped: number; operations: string[] } {
+  let created = 0;
+  let skipped = 0;
+  const operations: string[] = [];
+
+  // Ensure target directory exists
+  if (!exists(targetBaseDir) && !dryRun) {
+    mkdirSync(targetBaseDir, { recursive: true });
+  }
+
+  for (const sourceDir of sourceSkillDirs) {
+    const skillName = pathBasename(sourceDir);
+    const targetDir = pathJoin(targetBaseDir, skillName);
+
+    if (exists(targetDir)) {
+      skipped += 1;
+      if (verbose) {
+        operations.push(`skipped: ${targetDir} (already exists)`);
+      }
+      continue;
+    }
+
+    if (dryRun) {
+      created += 1;
+      if (verbose) {
+        operations.push(`would sync: ${sourceDir} -> ${targetDir}`);
+      }
+      continue;
+    }
+
+    try {
+      cpSync(sourceDir, targetDir, { recursive: true });
+      created += 1;
+      if (verbose) {
+        operations.push(`synced: ${sourceDir} -> ${targetDir}`);
+      }
+    } catch (error) {
+      skipped += 1;
+      if (verbose) {
+        operations.push(`error: ${sourceDir} (${error})`);
+      }
+    }
+  }
+
+  return { created, skipped, operations };
 }

@@ -56,6 +56,15 @@ agents list-commands
 agents list-commands --verbose
 ```
 
+### List skills
+
+Discover all Claude Code skills (both global and project-level):
+
+```bash
+agents list-skills
+agents list-skills --verbose
+```
+
 ### Sync guideline files
 
 Create symlinks for specified agents from all AGENTS.md files in your project:
@@ -84,6 +93,21 @@ agents sync-commands --claude --cursor --dry-run
 
 # Verbose output showing each operation
 agents sync-commands --claude --cursor --verbose
+```
+
+### Sync skills
+
+Sync skills from source `skills/` directories to `.claude/skills/`:
+
+```bash
+# Sync all skills from skills/ to .claude/skills/
+agents sync-skills
+
+# Preview changes without applying
+agents sync-skills --dry-run
+
+# Verbose output showing each operation
+agents sync-skills --verbose
 ```
 
 ### Remove guideline files
@@ -128,6 +152,8 @@ Adding new agent types is simple: edit `providers.json` and add to the `provider
 
 ## Workflow
 
+### Guidelines and Commands
+
 1. Create an `AGENTS.md` file in your project root with guidelines for your AI coding assistants
 2. Create the same file in any nested directories (subdirectories with their own guidelines)
 3. Run `agents sync --claude --cursor` (or any agents you use)
@@ -136,6 +162,13 @@ Adding new agent types is simple: edit `providers.json` and add to the `provider
 To sync custom/slash commands, add `COMMANDS.md` files and run `agents sync-commands`.
 
 When you update AGENTS.md, all agent-specific files automatically reflect the changes since they're symlinks.
+
+### Skills
+
+1. Create a `skills/` directory in your project root
+2. Add skill subdirectories with `SKILL.md` files (see [Claude Code Skills](https://code.claude.com/docs/en/skills) for format)
+3. Run `agents sync-skills` to copy skills to `.claude/skills/`
+4. Use `agents list-skills` to view all available skills (global and project-level)
 
 ## Safety Features
 
@@ -182,6 +215,40 @@ myproject/
         └── agents.md -> ../../../AGENTS.md (symlink)
 ```
 
+## Skill File Format
+
+Skills are reusable modules that extend Claude's capabilities. Each skill requires:
+
+- A directory named after the skill (e.g., `skills/my-skill/`)
+- A `SKILL.md` file with YAML frontmatter:
+
+```yaml
+---
+name: my-skill-name
+description: Clear description of what this skill does and when to use it
+license: MIT
+allowed-tools: Read, Grep, Glob
+---
+
+# Skill Instructions
+
+[Detailed instructions for Claude on how to use this skill]
+
+## Examples
+- Example usage 1
+- Example usage 2
+```
+
+**Required fields:**
+- `name` - Unique identifier (lowercase, hyphenated)
+- `description` - Maximum 1024 characters; describes purpose and use cases
+
+**Optional fields:**
+- `license` - License information
+- `allowed-tools` - Comma-separated list of tools Claude can use
+
+For more information, see [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills).
+
 ## Help
 
 ```bash
@@ -189,6 +256,8 @@ agents help
 agents list --help
 agents sync --help
 agents rm --help
+agents list-skills --help
+agents sync-skills --help
 ```
 
 ## Tech Stack
