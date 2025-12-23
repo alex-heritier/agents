@@ -50,6 +50,7 @@ function mergeProviderConfig(base: ProvidersConfig, override: ProvidersConfig): 
     sources: {
       guidelines: override.sources?.guidelines || base.sources.guidelines,
       commands: override.sources?.commands || base.sources.commands,
+      skills: override.sources?.skills || base.sources.skills,
     },
     globalGuidelines: base.globalGuidelines.slice(),
     providers: { ...base.providers },
@@ -83,6 +84,9 @@ function mergeProvider(base: ProviderConfig, override: ProviderConfig): Provider
   }
   if (override.commands) {
     merged.commands = mergeFileSpec(base.commands, override.commands);
+  }
+  if (override.skills) {
+    merged.skills = mergeFileSpec(base.skills, override.skills);
   }
   return merged;
 }
