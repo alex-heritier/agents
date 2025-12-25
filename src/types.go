@@ -6,8 +6,7 @@ type FileSpec struct {
 	Dir  string `json:"dir"`
 }
 
-// ProviderConfig defines configuration for a specific provider
-type ProviderConfig struct {
+type ToolConfig struct {
 	Name       string    `json:"name,omitempty"`
 	Guidelines *FileSpec `json:"guidelines,omitempty"`
 	Commands   *FileSpec `json:"commands,omitempty"`
@@ -21,18 +20,17 @@ type SourcesConfig struct {
 	Skills     string `json:"skills"`
 }
 
-// ProvidersConfig is the root configuration structure
-type ProvidersConfig struct {
-	Sources          SourcesConfig             `json:"sources"`
-	GlobalGuidelines []string                  `json:"globalGuidelines"`
-	Providers        map[string]ProviderConfig `json:"providers"`
+type ToolsConfig struct {
+	Sources          SourcesConfig         `json:"sources"`
+	GlobalGuidelines []string              `json:"globalGuidelines"`
+	Tools            map[string]ToolConfig `json:"tools"`
 }
 
 // ManagedFile represents a discovered file
 type ManagedFile struct {
 	Path      string
 	Dir       string
-	Agent     string
+	Tool      string
 	File      string
 	IsSymlink bool
 	Size      int64

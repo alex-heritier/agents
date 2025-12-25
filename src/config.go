@@ -6,10 +6,9 @@ import (
 	"os"
 )
 
-var cachedConfig *ProvidersConfig
+var cachedConfig *ToolsConfig
 
-// getProviderConfig loads and caches the provider configuration
-func getProviderConfig() (*ProvidersConfig, error) {
+func getToolConfig() (*ToolsConfig, error) {
 	if cachedConfig != nil {
 		return cachedConfig, nil
 	}
@@ -28,11 +27,11 @@ func getProviderConfig() (*ProvidersConfig, error) {
 	if userConfigPath != "" && fileExists(userConfigPath) {
 		userConfig, err := loadConfigFile(userConfigPath)
 		if err == nil {
-			baseConfig = mergeProviderConfig(baseConfig, userConfig)
+			baseConfig = mergeToolConfig(baseConfig, userConfig)
 		}
 	}
 
-	normalized := normalizeProviderConfig(baseConfig)
+	normalized := normalizeToolConfig(baseConfig)
 	cachedConfig = &normalized
 	return cachedConfig, nil
 }
@@ -42,49 +41,44 @@ func clearConfigCache() {
 	cachedConfig = nil
 }
 
-// findConfigPath locates the providers.json file
 func findConfigPath() (string, error) {
-	// Try current directory first
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 
-	localPath := pathJoin(cwd, "providers.json")
+	localPath := pathJoin(cwd, "tools.json")
 	if fileExists(localPath) {
 		return localPath, nil
 	}
 
-	// Try executable directory
 	exePath, err := os.Executable()
 	if err == nil {
 		exeDir := pathDirname(exePath)
-		repoPath := pathJoin(exeDir, "providers.json")
+		repoPath := pathJoin(exeDir, "tools.json")
 		if fileExists(repoPath) {
 			return repoPath, nil
 		}
 	}
 
-	return "", fmt.Errorf("providers.json not found")
+	return "", fmt.Errorf("tools.json not found")
 }
 
-// loadConfigFile loads a configuration file
-func loadConfigFile(path string) (ProvidersConfig, error) {
+func loadConfigFile(path string) (ToolsConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ProvidersConfig{}, err
+		return ToolsConfig{}, err
 	}
 
-	var config ProvidersConfig
+	var config ToolsConfig
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return ProvidersConfig{}, err
+		return ToolsConfig{}, err
 	}
 
 	return config, nil
 }
 
-// userConfigFilePath returns the user's config file path
 func userConfigFilePath() string {
 	xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 	if xdgConfigHome == "" {
@@ -94,22 +88,20 @@ func userConfigFilePath() string {
 		}
 		xdgConfigHome = pathJoin(home, ".config")
 	}
-	return pathJoin(xdgConfigHome, "agents", "providers.json")
+	return pathJoin(xdgConfigHome, "agents", "tools.json")
 }
 
-// mergeProviderConfig merges two provider configurations
-func mergeProviderConfig(base, override ProvidersConfig) ProvidersConfig {
-	merged := ProvidersConfig{
+func mergeToolConfig(base, override ToolsConfig) ToolsConfig {
+	merged := ToolsConfig{
 		Sources: SourcesConfig{
 			Guidelines: base.Sources.Guidelines,
 			Commands:   base.Sources.Commands,
 			Skills:     base.Sources.Skills,
 		},
 		GlobalGuidelines: append([]string{}, base.GlobalGuidelines...),
-		Providers:        make(map[string]ProviderConfig),
+		Tools:            make(map[string]ToolConfig),
 	}
 
-	// Override sources
 	if override.Sources.Guidelines != "" {
 		merged.Sources.Guidelines = override.Sources.Guidelines
 	}
@@ -120,31 +112,27 @@ func mergeProviderConfig(base, override ProvidersConfig) ProvidersConfig {
 		merged.Sources.Skills = override.Sources.Skills
 	}
 
-	// Merge global guidelines
 	if len(override.GlobalGuidelines) > 0 {
 		merged.GlobalGuidelines = append(merged.GlobalGuidelines, override.GlobalGuidelines...)
 	}
 
-	// Copy base providers
-	for name, provider := range base.Providers {
-		merged.Providers[name] = provider
+	for name, tool := range base.Tools {
+		merged.Tools[name] = tool
 	}
 
-	// Merge override providers
-	for name, overrideProvider := range override.Providers {
-		baseProvider, exists := merged.Providers[name]
+	for name, overrideTool := range override.Tools {
+		baseTool, exists := merged.Tools[name]
 		if !exists {
-			merged.Providers[name] = overrideProvider
+			merged.Tools[name] = overrideTool
 			continue
 		}
-		merged.Providers[name] = mergeProvider(baseProvider, overrideProvider)
+		merged.Tools[name] = mergeTool(baseTool, overrideTool)
 	}
 
 	return merged
 }
 
-// mergeProvider merges two provider configurations
-func mergeProvider(base, override ProviderConfig) ProviderConfig {
+func mergeTool(base, override ToolConfig) ToolConfig {
 	merged := base
 
 	if override.Name != "" {
@@ -187,16 +175,15 @@ func mergeFileSpec(base, override *FileSpec) *FileSpec {
 	return result
 }
 
-// normalizeProviderConfig normalizes provider names
-func normalizeProviderConfig(cfg ProvidersConfig) ProvidersConfig {
+func normalizeToolConfig(cfg ToolsConfig) ToolsConfig {
 	normalized := cfg
-	normalized.Providers = make(map[string]ProviderConfig)
+	normalized.Tools = make(map[string]ToolConfig)
 
-	for name, provider := range cfg.Providers {
-		if provider.Name == "" {
-			provider.Name = name
+	for name, tool := range cfg.Tools {
+		if tool.Name == "" {
+			tool.Name = name
 		}
-		normalized.Providers[name] = provider
+		normalized.Tools[name] = tool
 	}
 
 	if normalized.GlobalGuidelines == nil {

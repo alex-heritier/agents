@@ -137,7 +137,7 @@ For module-specific help:
 }
 
 func printRuleHelp() {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -158,9 +158,9 @@ func printRuleHelp() {
 	fmt.Println()
 	fmt.Println("  sync                     Find all guideline source files and create symlinks")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
-		flagName := getProviderFlagName(cfg, agent)
-		guidelines := cfg.Providers[agent].Guidelines
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+		flagName := getToolFlagName(cfg, agent)
+		guidelines := cfg.Tools[agent].Guidelines
 		if guidelines != nil {
 			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", guidelines.File))
 		}
@@ -171,9 +171,9 @@ func printRuleHelp() {
 	fmt.Println()
 	fmt.Println("  rm                       Delete guideline files for specified agents")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
-		flagName := getProviderFlagName(cfg, agent)
-		guidelines := cfg.Providers[agent].Guidelines
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+		flagName := getToolFlagName(cfg, agent)
+		guidelines := cfg.Tools[agent].Guidelines
 		if guidelines != nil {
 			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", guidelines.File))
 		}
@@ -195,7 +195,7 @@ func printRuleHelp() {
 }
 
 func printCommandHelp() {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -214,9 +214,9 @@ func printCommandHelp() {
 	fmt.Println()
 	fmt.Println("  sync                     Find all command source files and create symlinks")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		flagName := getProviderFlagName(cfg, agent)
-		commands := cfg.Providers[agent].Commands
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Commands }) {
+		flagName := getToolFlagName(cfg, agent)
+		commands := cfg.Tools[agent].Commands
 		if commands != nil {
 			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", commands.File))
 		}
@@ -227,9 +227,9 @@ func printCommandHelp() {
 	fmt.Println()
 	fmt.Println("  rm                       Delete command files for specified agents")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		flagName := getProviderFlagName(cfg, agent)
-		commands := cfg.Providers[agent].Commands
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Commands }) {
+		flagName := getToolFlagName(cfg, agent)
+		commands := cfg.Tools[agent].Commands
 		if commands != nil {
 			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", commands.File))
 		}
@@ -270,7 +270,7 @@ func printSkillHelp() {
 }
 
 func cmdRuleList(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -281,8 +281,8 @@ func cmdRuleList(argv []string) {
 	allowedFlags["--global"] = true
 	allowedFlags["-g"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -295,25 +295,25 @@ func cmdRuleList(argv []string) {
 	verbose := parsed.Flags["--verbose"]
 	global := parsed.Flags["-g"] || parsed.Flags["--global"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
 	filterAgents := selection.Selected
 
 	var files []ManagedFile
 	if global {
 		files = discoverGlobalOnly(cfg)
 	} else {
-		files = discoverAll(cfg, cfg.Sources.Guidelines, func(p ProviderConfig) *FileSpec { return p.Guidelines })
+		files = discoverAll(cfg, cfg.Sources.Guidelines, func(p ToolConfig) *FileSpec { return p.Guidelines })
 	}
 
 	if len(filterAgents) > 0 {
-		files = filterFilesByProviders(files, filterAgents)
+		files = filterFilesByTools(files, filterAgents)
 	}
 
 	formatList(files, verbose, "No guideline files found.")
 }
 
 func cmdRuleSync(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -323,8 +323,8 @@ func cmdRuleSync(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -337,15 +337,15 @@ func cmdRuleSync(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
-	selectedAgents := ensureProvidersSelected(cfg, selection.Available, selection.Selected)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
 	sourceFiles := discoverSources(cfg.Sources.Guidelines)
 	result := syncSymlinks(
 		sourceFiles,
 		selectedAgents,
 		cfg,
-		func(p ProviderConfig) *FileSpec { return p.Guidelines },
+		func(p ToolConfig) *FileSpec { return p.Guidelines },
 		dryRun,
 		verbose,
 	)
@@ -354,7 +354,7 @@ func cmdRuleSync(argv []string) {
 }
 
 func cmdRuleRm(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -364,8 +364,8 @@ func cmdRuleRm(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -378,14 +378,14 @@ func cmdRuleRm(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
-	selectedAgents := ensureProvidersSelected(cfg, selection.Available, selection.Selected)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Guidelines, func(p ProviderConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
+	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Guidelines, func(p ToolConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
 }
 
 func cmdCommandList(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -394,8 +394,8 @@ func cmdCommandList(argv []string) {
 	allowedFlags := make(map[string]bool)
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Commands }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -407,19 +407,19 @@ func cmdCommandList(argv []string) {
 
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }, parsed.Flags)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
 	filterAgents := selection.Selected
 
-	files := discoverAll(cfg, cfg.Sources.Commands, func(p ProviderConfig) *FileSpec { return p.Commands })
+	files := discoverAll(cfg, cfg.Sources.Commands, func(p ToolConfig) *FileSpec { return p.Commands })
 	if len(filterAgents) > 0 {
-		files = filterFilesByProviders(files, filterAgents)
+		files = filterFilesByTools(files, filterAgents)
 	}
 
 	formatList(files, verbose, "No command files found.")
 }
 
 func cmdCommandSync(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -429,8 +429,8 @@ func cmdCommandSync(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Commands }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -443,15 +443,15 @@ func cmdCommandSync(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }, parsed.Flags)
-	selectedAgents := ensureProvidersSelected(cfg, selection.Available, selection.Selected)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
+	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
 	sourceFiles := discoverSources(cfg.Sources.Commands)
 	result := syncSymlinks(
 		sourceFiles,
 		selectedAgents,
 		cfg,
-		func(p ProviderConfig) *FileSpec { return p.Commands },
+		func(p ToolConfig) *FileSpec { return p.Commands },
 		dryRun,
 		verbose,
 	)
@@ -460,7 +460,7 @@ func cmdCommandSync(argv []string) {
 }
 
 func cmdCommandRm(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -470,8 +470,8 @@ func cmdCommandRm(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		allowedFlags["--"+getProviderFlagName(cfg, name)] = true
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Commands }) {
+		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
 	parsed := parseArgs(argv, allowedFlags)
@@ -484,10 +484,10 @@ func cmdCommandRm(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectAgentFlags(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }, parsed.Flags)
-	selectedAgents := ensureProvidersSelected(cfg, selection.Available, selection.Selected)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
+	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Commands, func(p ProviderConfig) *FileSpec { return p.Commands }, dryRun, verbose)
+	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Commands, func(p ToolConfig) *FileSpec { return p.Commands }, dryRun, verbose)
 }
 
 func cmdSkillList(argv []string) {
@@ -507,7 +507,7 @@ func cmdSkillList(argv []string) {
 }
 
 func cmdSkillSync(argv []string) {
-	cfg, err := getProviderConfig()
+	cfg, err := getToolConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -538,10 +538,10 @@ func cmdSkillSync(argv []string) {
 
 // Helper functions
 
-func getProviderNames(cfg *ProvidersConfig, specSelector func(ProviderConfig) *FileSpec) []string {
+func getToolNames(cfg *ToolsConfig, specSelector func(ToolConfig) *FileSpec) []string {
 	names := []string{}
-	for name, provider := range cfg.Providers {
-		if specSelector(provider) != nil {
+	for name, tool := range cfg.Tools {
+		if specSelector(tool) != nil {
 			names = append(names, name)
 		}
 	}
@@ -549,37 +549,37 @@ func getProviderNames(cfg *ProvidersConfig, specSelector func(ProviderConfig) *F
 	return names
 }
 
-func getProviderFlagName(cfg *ProvidersConfig, providerName string) string {
-	provider, ok := cfg.Providers[providerName]
-	if !ok || provider.Name == "" {
-		return providerName
+func getToolFlagName(cfg *ToolsConfig, toolName string) string {
+	tool, ok := cfg.Tools[toolName]
+	if !ok || tool.Name == "" {
+		return toolName
 	}
-	return provider.Name
+	return tool.Name
 }
 
-type AgentSelection struct {
+type ToolSelection struct {
 	Available []string
 	Selected  []string
 }
 
-func collectAgentFlags(cfg *ProvidersConfig, specSelector func(ProviderConfig) *FileSpec, flags map[string]bool) AgentSelection {
-	available := getProviderNames(cfg, specSelector)
+func collectToolFlags(cfg *ToolsConfig, specSelector func(ToolConfig) *FileSpec, flags map[string]bool) ToolSelection {
+	available := getToolNames(cfg, specSelector)
 	selected := []string{}
 
-	for _, providerName := range available {
-		flagName := "--" + getProviderFlagName(cfg, providerName)
+	for _, toolName := range available {
+		flagName := "--" + getToolFlagName(cfg, toolName)
 		if flags[flagName] {
-			selected = append(selected, providerName)
+			selected = append(selected, toolName)
 		}
 	}
 
-	return AgentSelection{
+	return ToolSelection{
 		Available: available,
 		Selected:  selected,
 	}
 }
 
-func ensureProvidersSelected(cfg *ProvidersConfig, available, selected []string) []string {
+func ensureToolsSelected(cfg *ToolsConfig, available, selected []string) []string {
 	if len(selected) > 0 {
 		return selected
 	}
@@ -589,10 +589,10 @@ func ensureProvidersSelected(cfg *ProvidersConfig, available, selected []string)
 		os.Exit(1)
 	}
 
-	first := getProviderFlagName(cfg, available[0])
+	first := getToolFlagName(cfg, available[0])
 	rest := []string{}
 	for i := 1; i < len(available); i++ {
-		rest = append(rest, "--"+getProviderFlagName(cfg, available[i]))
+		rest = append(rest, "--"+getToolFlagName(cfg, available[i]))
 	}
 
 	msg := fmt.Sprintf("Please specify at least one agent flag: --%s", first)
@@ -604,17 +604,17 @@ func ensureProvidersSelected(cfg *ProvidersConfig, available, selected []string)
 	return nil
 }
 
-func filterFilesByProviders(files []ManagedFile, providers []string) []ManagedFile {
-	lower := make([]string, len(providers))
-	for i, p := range providers {
+func filterFilesByTools(files []ManagedFile, tools []string) []ManagedFile {
+	lower := make([]string, len(tools))
+	for i, p := range tools {
 		lower[i] = strings.ToLower(p)
 	}
 
 	filtered := []ManagedFile{}
 	for _, file := range files {
-		fileLower := strings.ToLower(file.Agent)
-		for _, provider := range lower {
-			if fileLower == provider {
+		fileLower := strings.ToLower(file.Tool)
+		for _, tool := range lower {
+			if fileLower == tool {
 				filtered = append(filtered, file)
 				break
 			}

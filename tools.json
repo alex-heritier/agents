@@ -13,7 +13,7 @@
     "~/.config/AGENTS.md",
     "~/AGENTS.md"
   ],
-  "providers": {
+  "tools": {
     "claude": {
       "guidelines": {
         "file": "CLAUDE.md",

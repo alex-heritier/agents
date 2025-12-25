@@ -35,14 +35,13 @@ func discoverSources(sourceName string) []string {
 	return sources
 }
 
-// discoverAll discovers all managed files
-func discoverAll(cfg *ProvidersConfig, sourceName string, specSelector func(ProviderConfig) *FileSpec) []ManagedFile {
+func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConfig) *FileSpec) []ManagedFile {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return []ManagedFile{}
 	}
 
-	allowedDirs := allowedProviderDirs(cfg, specSelector)
+	allowedDirs := allowedToolDirs(cfg, specSelector)
 	files := []ManagedFile{}
 
 	walk(cwd, func(path string, info os.FileInfo) string {
@@ -60,8 +59,8 @@ func discoverAll(cfg *ProvidersConfig, sourceName string, specSelector func(Prov
 		if filename == sourceName {
 			agent = strings.ToUpper(strings.TrimSuffix(sourceName, ".md"))
 		} else {
-			for agentName, provider := range cfg.Providers {
-				spec := specSelector(provider)
+			for agentName, tool := range cfg.Tools {
+				spec := specSelector(tool)
 				if spec == nil {
 					continue
 				}
@@ -91,7 +90,7 @@ func discoverAll(cfg *ProvidersConfig, sourceName string, specSelector func(Prov
 		files = append(files, ManagedFile{
 			Path:      path,
 			Dir:       dir,
-			Agent:     agent,
+			Tool:      agent,
 			File:      filename,
 			IsSymlink: isSymlink,
 			Size:      info.Size(),
@@ -103,8 +102,7 @@ func discoverAll(cfg *ProvidersConfig, sourceName string, specSelector func(Prov
 	return files
 }
 
-// discoverGlobalOnly discovers global guideline files
-func discoverGlobalOnly(cfg *ProvidersConfig) []ManagedFile {
+func discoverGlobalOnly(cfg *ToolsConfig) []ManagedFile {
 	files := []ManagedFile{}
 
 	for _, location := range globalGuidelinePaths(cfg) {
@@ -119,7 +117,7 @@ func discoverGlobalOnly(cfg *ProvidersConfig) []ManagedFile {
 
 		filename := pathBasename(location)
 		dir := pathDirname(location)
-		agent := inferProviderFromFilename(cfg, filename)
+		agent := inferToolFromFilename(cfg, filename)
 		if agent == "" {
 			continue
 		}
@@ -133,7 +131,7 @@ func discoverGlobalOnly(cfg *ProvidersConfig) []ManagedFile {
 		files = append(files, ManagedFile{
 			Path:      location,
 			Dir:       dir,
-			Agent:     agent,
+			Tool:      agent,
 			File:      filename,
 			IsSymlink: isSymlink,
 			Size:      info.Size(),
@@ -143,14 +141,13 @@ func discoverGlobalOnly(cfg *ProvidersConfig) []ManagedFile {
 	return files
 }
 
-// inferProviderFromFilename infers the provider name from a filename
-func inferProviderFromFilename(cfg *ProvidersConfig, filename string) string {
+func inferToolFromFilename(cfg *ToolsConfig, filename string) string {
 	if filename == cfg.Sources.Guidelines {
 		return strings.ToUpper(strings.TrimSuffix(filename, ".md"))
 	}
 
-	for agentName, provider := range cfg.Providers {
-		if provider.Guidelines != nil && filename == provider.Guidelines.File {
+	for agentName, tool := range cfg.Tools {
+		if tool.Guidelines != nil && filename == tool.Guidelines.File {
 			return strings.ToUpper(agentName)
 		}
 	}
@@ -201,12 +198,11 @@ func walk(root string, visitor func(string, os.FileInfo) string) {
 	}
 }
 
-// allowedProviderDirs returns a set of allowed provider directories
-func allowedProviderDirs(cfg *ProvidersConfig, specSelector func(ProviderConfig) *FileSpec) map[string]bool {
+func allowedToolDirs(cfg *ToolsConfig, specSelector func(ToolConfig) *FileSpec) map[string]bool {
 	allowed := make(map[string]bool)
 
-	for _, provider := range cfg.Providers {
-		spec := specSelector(provider)
+	for _, tool := range cfg.Tools {
+		spec := specSelector(tool)
 		if spec == nil || spec.Dir == "" {
 			continue
 		}
@@ -220,8 +216,7 @@ func allowedProviderDirs(cfg *ProvidersConfig, specSelector func(ProviderConfig)
 	return allowed
 }
 
-// globalGuidelinePaths returns expanded global guideline paths
-func globalGuidelinePaths(cfg *ProvidersConfig) []string {
+func globalGuidelinePaths(cfg *ToolsConfig) []string {
 	paths := make([]string, len(cfg.GlobalGuidelines))
 	for i, path := range cfg.GlobalGuidelines {
 		paths[i] = expandHomePath(path)
@@ -354,7 +349,6 @@ func parseSkillMetadata(skillFile string) (*SkillMetadata, error) {
 	frontmatter := string(matches[1])
 	metadata := &SkillMetadata{}
 
-	// Parse simple YAML key-value pairs
 	lines := strings.Split(frontmatter, "\n")
 	for _, line := range lines {
 		parts := strings.SplitN(line, ":", 2)
@@ -372,7 +366,7 @@ func parseSkillMetadata(skillFile string) (*SkillMetadata, error) {
 			metadata.Description = value
 		case "license":
 			metadata.License = value
-		case "allowed-tools":
+		case "allowedTools":
 			metadata.AllowedTools = value
 		}
 	}

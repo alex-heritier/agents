@@ -61,7 +61,7 @@ The CLI follows a module-based command structure: `agents <module> <command> [fl
 1. Modify code files (main.go, discovery.go, symlink.go, output.go, config.go, args.go, paths.go, types.go)
 2. Run `go build -o agents` to compile
 3. Test with `./agents <module> <command>`
-4. Add new agent types in providers.json configuration file
+4. Add new agent types in tools.json configuration file
 
 ## Examples
 ```bash

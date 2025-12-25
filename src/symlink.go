@@ -16,12 +16,11 @@ type SyncResult struct {
 	Operations []string
 }
 
-// syncSymlinks creates symlinks for the specified providers
 func syncSymlinks(
 	sources []string,
-	selectedProviders []string,
-	cfg *ProvidersConfig,
-	specSelector func(ProviderConfig) *FileSpec,
+	selectedTools []string,
+	cfg *ToolsConfig,
+	specSelector func(ToolConfig) *FileSpec,
 	dryRun bool,
 	verbose bool,
 ) SyncResult {
@@ -35,13 +34,13 @@ func syncSymlinks(
 		dir := pathDirname(sourcePath)
 		filename := pathBasename(sourcePath)
 
-		for _, providerName := range selectedProviders {
-			provider, ok := cfg.Providers[providerName]
+		for _, toolName := range selectedTools {
+			tool, ok := cfg.Tools[toolName]
 			if !ok {
 				continue
 			}
 
-			spec := specSelector(provider)
+			spec := specSelector(tool)
 			if spec == nil {
 				continue
 			}
@@ -62,12 +61,11 @@ func syncSymlinks(
 	return result
 }
 
-// deleteManagedFiles deletes managed files for selected providers
 func deleteManagedFiles(
-	selectedProviders []string,
-	cfg *ProvidersConfig,
+	selectedTools []string,
+	cfg *ToolsConfig,
 	sourceName string,
-	specSelector func(ProviderConfig) *FileSpec,
+	specSelector func(ToolConfig) *FileSpec,
 	dryRun bool,
 	verbose bool,
 ) {
@@ -79,8 +77,8 @@ func deleteManagedFiles(
 
 	for _, file := range allFiles {
 		shouldDelete := false
-		for _, provider := range selectedProviders {
-			if strings.EqualFold(file.Agent, provider) {
+		for _, tool := range selectedTools {
+			if strings.EqualFold(file.Tool, tool) {
 				shouldDelete = true
 				break
 			}

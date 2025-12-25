@@ -151,7 +151,7 @@ agents rm-commands --claude --dry-run --verbose
 - **gemini** - Creates `GEMINI.md`
 - **qwen** - Creates `QWEN.md`
 
-Adding new agent types is simple: edit `providers.json` and add to the `providers` map.
+Adding new agent types is simple: edit `tools.json` and add to the `tools` map.
 
 ## Workflow
 
@@ -273,7 +273,7 @@ agents sync-skills --help
 
 Contributions welcome! To add a new agent type:
 
-1. Edit `providers.json` and add to the `providers` map
+1. Edit `tools.json` and add to the `tools` map
 2. Run `go build` (and tests if added)
 3. Submit a PR
 
@@ -286,15 +286,15 @@ For comprehensive information about how different AI agents use guideline files,
 - Auto-generation and external file referencing
 - Best practices for cross-agent compatibility
 
-## Provider Configuration
+## Tool Configuration
 
-Provider definitions live in `providers.json` (file names, directories, and source file names). You can extend or override these definitions by creating an optional file at:
+Tool definitions live in `tools.json` (file names, directories, and source file names). You can extend or override these definitions by creating an optional file at:
 
 ```
-$XDG_CONFIG_HOME/agents/providers.json
+$XDG_CONFIG_HOME/agents/tools.json
 ```
 
-If `XDG_CONFIG_HOME` is not set, the tool falls back to `~/.config/agents/providers.json`.
+If `XDG_CONFIG_HOME` is not set, the tool falls back to `~/.config/agents/tools.json`.
 
 ## TODO
 
