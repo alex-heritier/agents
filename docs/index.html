@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Agent Guidelines Manager CLI - Sync AI agent guideline files across project hierarchies with a single source of truth">
+    <title>Agent Guidelines Manager CLI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            padding: 60px 0;
+            text-align: center;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .cta {
+            margin-top: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 35px;
+            margin: 10px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        main {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
+        }
+
+        section {
+            padding: 60px 0;
+        }
+
+        section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            color: #667eea;
+            text-align: center;
+        }
+
+        section h3 {
+            font-size: 1.8rem;
+            margin: 30px 0 15px;
+            color: #764ba2;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            padding: 30px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+
+        .feature-card p {
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 25px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .code-block code {
+            color: #98c379;
+        }
+
+        .code-block .comment {
+            color: #5c6370;
+        }
+
+        .agents-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .agent-badge {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 25px;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .workflow-diagram {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .workflow-step {
+            margin: 15px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .workflow-step::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+
+            header p {
+                font-size: 1.2rem;
+            }
+
+            section h2 {
+                font-size: 2rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Agent Guidelines Manager CLI</h1>
+            <p>Sync AI agent guideline files across project hierarchies. One source of truth, infinite possibilities.</p>
+            <div class="cta">
+                <a href="https://github.com/alex-heritier/agents" class="btn">Get Started</a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="problem">
+            <div class="container">
+                <h2>The Problem</h2>
+                <p style="text-align: center; max-width: 800px; margin: 0 auto; font-size: 1.2rem; color: #555;">
+                    Different AI coding assistants look for guidelines in different places. Managing multiple guideline files
+                    manually across nested directories is error-prone and duplicates effort.
+                </p>
+                <div class="code-block" style="margin-top: 30px;">
+<span class="comment"># Different agents, different conventions:</span>
+<code>CLAUDE.md              </code><span class="comment"># For Claude</span>
+<code>.cursor/rules/*.md    </code><span class="comment"># For Cursor</span>
+<code>COPILOT.md            </code><span class="comment"># For GitHub Copilot</span>
+<code>GEMINI.md             </code><span class="comment"># For Google Gemini</span>
+<code>QWEN.md               </code><span class="comment"># For Qwen</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="solution" style="background: #f8f9fa;">
+            <div class="container">
+                <h2>The Solution</h2>
+                <p style="text-align: center; max-width: 800px; margin: 0 auto 40px; font-size: 1.2rem; color: #555;">
+                    Maintain <strong>AGENTS.md</strong> as your single source of truth. Let the CLI create symlinks for each agent automatically.
+                </p>
+
+                <div class="workflow-diagram">
+                    <h3>Simple Workflow</h3>
+                    <div class="workflow-step">Create <code>AGENTS.md</code> with your project guidelines</div>
+                    <div class="workflow-step">Run <code>agents sync --claude --cursor --copilot</code></div>
+                    <div class="workflow-step">All agent-specific files are created as symlinks</div>
+                    <div class="workflow-step">Update <code>AGENTS.md</code> once, all agents see the changes</div>
+                </div>
+
+                <div class="code-block">
+<span class="comment"># Sync guidelines for Claude and Cursor</span>
+<code>$ agents sync --claude --cursor</code>
+
+<span class="comment"># Preview changes first</span>
+<code>$ agents sync --claude --cursor --dry-run</code>
+
+<span class="comment"># List all guideline files</span>
+<code>$ agents list --verbose</code>
+                </div>
+            </div>
+        </section>
+
+        <section id="features">
+            <div class="container">
+                <h2>Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>Single Source of Truth</h3>
+                        <p>Maintain AGENTS.md and automatically sync to all agent-specific formats via symlinks.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Multi-Agent Support</h3>
+                        <p>Support for Claude, Cursor, GitHub Copilot, Gemini, Qwen, and more. Easily extensible.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Hierarchical Management</h3>
+                        <p>Works across project hierarchies. Perfect for monorepos with subdirectory-specific guidelines.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Command File Sync</h3>
+                        <p>Sync custom slash commands from COMMANDS.md to agent-specific locations.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Claude Code Skills</h3>
+                        <p>Manage and sync Claude Code skills from source directories to .claude/skills.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Safety First</h3>
+                        <p>Conflict detection, dry-run mode, and verbose logging ensure safe operations.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="supported-agents" style="background: #f8f9fa;">
+            <div class="container">
+                <h2>Supported AI Agents</h2>
+                <div class="agents-list">
+                    <span class="agent-badge">Claude</span>
+                    <span class="agent-badge">Cursor</span>
+                    <span class="agent-badge">GitHub Copilot</span>
+                    <span class="agent-badge">Google Gemini</span>
+                    <span class="agent-badge">Qwen</span>
+                    <span class="agent-badge">+ More via tools.json</span>
+                </div>
+                <p style="text-align: center; margin-top: 30px; font-size: 1.1rem; color: #555;">
+                    Adding new agent types is simple: just edit <code>tools.json</code> and add to the tools map.
+                </p>
+            </div>
+        </section>
+
+        <section id="installation">
+            <div class="container">
+                <h2>Installation</h2>
+                <h3>Build from Source</h3>
+                <div class="code-block">
+<code>$ git clone https://github.com/alex-heritier/agents.git</code>
+<code>$ cd agents</code>
+<code>$ go build -o agents</code>
+                </div>
+
+                <h3>Add to PATH</h3>
+                <div class="code-block">
+<span class="comment"># Option 1: Install to /usr/local/bin</span>
+<code>$ sudo cp agents /usr/local/bin/agents</code>
+
+<span class="comment"># Option 2: Create a symlink</span>
+<code>$ sudo ln -s "$PWD/agents" /usr/local/bin/agents</code>
+                </div>
+            </div>
+        </section>
+
+        <section id="usage" style="background: #f8f9fa;">
+            <div class="container">
+                <h2>Usage Examples</h2>
+
+                <h3>Guideline Files</h3>
+                <div class="code-block">
+<span class="comment"># List all guideline files</span>
+<code>$ agents list</code>
+<code>$ agents list --verbose</code>
+
+<span class="comment"># Sync guidelines for specific agents</span>
+<code>$ agents sync --claude --cursor</code>
+<code>$ agents sync --claude --cursor --copilot --dry-run</code>
+
+<span class="comment"># Remove agent-specific files</span>
+<code>$ agents rm --claude</code>
+<code>$ agents rm --cursor --gemini --dry-run</code>
+                </div>
+
+                <h3>Command Files</h3>
+                <div class="code-block">
+<span class="comment"># List all command files</span>
+<code>$ agents list-commands</code>
+
+<span class="comment"># Sync custom commands from COMMANDS.md</span>
+<code>$ agents sync-commands --claude --cursor</code>
+
+<span class="comment"># Remove command files</span>
+<code>$ agents rm-commands --claude</code>
+                </div>
+
+                <h3>Claude Code Skills</h3>
+                <div class="code-block">
+<span class="comment"># List all available skills</span>
+<code>$ agents list-skills</code>
+<code>$ agents list-skills --verbose</code>
+
+<span class="comment"># Sync skills from skills/ to .claude/skills/</span>
+<code>$ agents sync-skills</code>
+<code>$ agents sync-skills --dry-run --verbose</code>
+                </div>
+            </div>
+        </section>
+
+        <section id="resources">
+            <div class="container">
+                <h2>Resources</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>GitHub Repository</h3>
+                        <p><a href="https://github.com/alex-heritier/agents" style="color: #667eea;">View source code and contribute</a></p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Documentation</h3>
+                        <p><a href="https://github.com/alex-heritier/agents/blob/main/README.md" style="color: #667eea;">Full documentation on GitHub</a></p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Agent Conventions</h3>
+                        <p><a href="https://github.com/alex-heritier/agents/blob/main/agents-conventions.md" style="color: #667eea;">Learn about AI agent configurations</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tech-stack" style="background: #f8f9fa;">
+            <div class="container">
+                <h2>Tech Stack</h2>
+                <div style="text-align: center; font-size: 1.2rem; color: #555;">
+                    <p><strong>Language:</strong> Go</p>
+                    <p><strong>Dependencies:</strong> None (standard library only)</p>
+                    <p><strong>Platforms:</strong> macOS, Linux, Windows</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Agent Guidelines Manager CLI &copy; 2025</p>
+            <p>Licensed under <a href="https://github.com/alex-heritier/agents/blob/main/LICENSE">MIT</a> |
+               <a href="https://github.com/alex-heritier/agents">GitHub</a> |
+               <a href="https://github.com/alex-heritier/agents/issues">Report Issues</a></p>
+        </div>
+    </footer>
+</body>
+</html>
