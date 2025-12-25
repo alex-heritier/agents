@@ -41,10 +41,10 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 - No auto-modifications without explicit `--force` flag
 
 ## Quick Start (Development)
-1. Modify code files (main.go, discovery.go, symlink.go, output.go, agents.go)
-2. Run `go build` to compile
+1. Modify code files (main.go, discovery.go, symlink.go, output.go, config.go, args.go, paths.go, types.go)
+2. Run `go build -o agents` to compile
 3. Test with `./agents <command>`
-4. Add new agent types in agents.go under SupportedAgents map
+4. Add new agent types in providers.json configuration file
 
 ## Agent Configuration Reference
 
