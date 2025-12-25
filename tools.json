@@ -6,8 +6,10 @@
   },
   "globalGuidelines": [
     "~/.claude/CLAUDE.md",
+    "~/.claude/rules/",
     "~/.codex/AGENTS.md",
     "~/.gemini/GEMINI.md",
+    "~/.opencode/AGENTS.md",
     "~/.config/opencode/AGENTS.md",
     "~/.config/amp/AGENTS.md",
     "~/.config/AGENTS.md",
@@ -38,9 +40,19 @@
         "dir": ".cursor/commands"
       }
     },
+    "codex": {
+      "guidelines": {
+        "file": "AGENTS.md",
+        "dir": ""
+      },
+      "skills": {
+        "file": "SKILL.md",
+        "dir": ".codex/skills"
+      }
+    },
     "copilot": {
       "guidelines": {
-        "file": "COPILOT.md",
+        "file": "CLAUDE.md",
         "dir": ""
       }
     },
@@ -48,12 +60,40 @@
       "guidelines": {
         "file": "GEMINI.md",
         "dir": ""
+      },
+      "commands": {
+        "file": "*.toml",
+        "dir": ".gemini/commands"
+      }
+    },
+    "opencode": {
+      "guidelines": {
+        "file": "AGENTS.md",
+        "dir": ""
+      },
+      "commands": {
+        "file": "*.md",
+        "dir": ".opencode/command"
+      },
+      "skills": {
+        "file": "SKILL.md",
+        "dir": ".opencode/skill"
       }
     },
     "qwen": {
       "guidelines": {
         "file": "QWEN.md",
         "dir": ""
+      }
+    },
+    "amp": {
+      "guidelines": {
+        "file": "AGENTS.md",
+        "dir": ""
+      },
+      "commands": {
+        "file": "*",
+        "dir": ".agents/commands"
       }
     }
   }
