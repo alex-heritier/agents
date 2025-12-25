@@ -302,7 +302,7 @@ func cmdRuleList(argv []string) {
 	if global {
 		files = discoverGlobalOnly(cfg)
 	} else {
-		files = discoverAll(cfg, cfg.Sources.Guidelines, func(p ToolConfig) *FileSpec { return p.Guidelines })
+		files = discoverAll(cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.Guidelines })
 	}
 
 	if len(filterAgents) > 0 {
@@ -340,7 +340,7 @@ func cmdRuleSync(argv []string) {
 	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	sourceFiles := discoverSources(cfg.Sources.Guidelines)
+	sourceFiles := discoverSources(getStandardGuidelineFile(cfg))
 	result := syncSymlinks(
 		sourceFiles,
 		selectedAgents,
@@ -350,7 +350,7 @@ func cmdRuleSync(argv []string) {
 		verbose,
 	)
 
-	formatSyncSummary(cfg.Sources.Guidelines, len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
+	formatSyncSummary(getStandardGuidelineFile(cfg), len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
 }
 
 func cmdRuleRm(argv []string) {
@@ -381,7 +381,7 @@ func cmdRuleRm(argv []string) {
 	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Guidelines, func(p ToolConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
+	deleteManagedFiles(selectedAgents, cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
 }
 
 func cmdCommandList(argv []string) {
@@ -410,7 +410,7 @@ func cmdCommandList(argv []string) {
 	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
 	filterAgents := selection.Selected
 
-	files := discoverAll(cfg, cfg.Sources.Commands, func(p ToolConfig) *FileSpec { return p.Commands })
+	files := discoverAll(cfg, getStandardCommandPattern(cfg), func(p ToolConfig) *FileSpec { return p.Commands })
 	if len(filterAgents) > 0 {
 		files = filterFilesByTools(files, filterAgents)
 	}
@@ -446,7 +446,7 @@ func cmdCommandSync(argv []string) {
 	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	sourceFiles := discoverSources(cfg.Sources.Commands)
+	sourceFiles := discoverSources(getStandardCommandPattern(cfg))
 	result := syncSymlinks(
 		sourceFiles,
 		selectedAgents,
@@ -456,7 +456,7 @@ func cmdCommandSync(argv []string) {
 		verbose,
 	)
 
-	formatSyncSummary(cfg.Sources.Commands, len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
+	formatSyncSummary(getStandardCommandPattern(cfg), len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
 }
 
 func cmdCommandRm(argv []string) {
@@ -487,7 +487,7 @@ func cmdCommandRm(argv []string) {
 	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Commands }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Commands, func(p ToolConfig) *FileSpec { return p.Commands }, dryRun, verbose)
+	deleteManagedFiles(selectedAgents, cfg, getStandardCommandPattern(cfg), func(p ToolConfig) *FileSpec { return p.Commands }, dryRun, verbose)
 }
 
 func cmdSkillList(argv []string) {
@@ -527,7 +527,7 @@ func cmdSkillSync(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	sourceSkillDirs := discoverSourceSkills(cfg.Sources.Skills)
+	sourceSkillDirs := discoverSourceSkills(getStandardSkillsDir(cfg))
 	cwd, _ := os.Getwd()
 	targetDir := pathJoin(cwd, ".claude", "skills")
 
@@ -629,4 +629,28 @@ func ensureNoUnknownFlags(commandName string, unknownFlags []string) {
 	}
 	fmt.Fprintf(os.Stderr, "Unknown flags for %s: %s\n", commandName, strings.Join(unknownFlags, ", "))
 	os.Exit(1)
+}
+
+func getStandardGuidelineFile(cfg *ToolsConfig) string {
+	standardTool := getStandardTool(cfg)
+	if standardTool != nil && standardTool.Guidelines != nil {
+		return standardTool.Guidelines.File
+	}
+	return "AGENTS.md"
+}
+
+func getStandardCommandPattern(cfg *ToolsConfig) string {
+	standardTool := getStandardTool(cfg)
+	if standardTool != nil && standardTool.Commands != nil {
+		return standardTool.Commands.File
+	}
+	return "*.md"
+}
+
+func getStandardSkillsDir(cfg *ToolsConfig) string {
+	standardTool := getStandardTool(cfg)
+	if standardTool != nil && standardTool.Skills != nil {
+		return standardTool.Skills.Dir
+	}
+	return ".opencode/skill"
 }

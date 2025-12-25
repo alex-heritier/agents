@@ -1,9 +1,10 @@
 package main
 
-// FileSpec defines a file specification with directory and filename
+// FileSpec defines a file specification with directory, filename, and global paths
 type FileSpec struct {
-	File string `json:"file"`
-	Dir  string `json:"dir"`
+	File   string   `json:"file"`
+	Dir    string   `json:"dir"`
+	Global []string `json:"global,omitempty"`
 }
 
 type ToolConfig struct {
@@ -13,17 +14,9 @@ type ToolConfig struct {
 	Skills     *FileSpec `json:"skills,omitempty"`
 }
 
-// SourcesConfig defines source file names
-type SourcesConfig struct {
-	Guidelines string `json:"guidelines"`
-	Commands   string `json:"commands"`
-	Skills     string `json:"skills"`
-}
-
 type ToolsConfig struct {
-	Sources          SourcesConfig         `json:"sources"`
-	GlobalGuidelines []string              `json:"globalGuidelines"`
-	Tools            map[string]ToolConfig `json:"tools"`
+	Standard string                `json:"standard,omitempty"`
+	Tools    map[string]ToolConfig `json:"tools"`
 }
 
 // ManagedFile represents a discovered file

@@ -93,27 +93,12 @@ func userConfigFilePath() string {
 
 func mergeToolConfig(base, override ToolsConfig) ToolsConfig {
 	merged := ToolsConfig{
-		Sources: SourcesConfig{
-			Guidelines: base.Sources.Guidelines,
-			Commands:   base.Sources.Commands,
-			Skills:     base.Sources.Skills,
-		},
-		GlobalGuidelines: append([]string{}, base.GlobalGuidelines...),
-		Tools:            make(map[string]ToolConfig),
+		Standard: base.Standard,
+		Tools:    make(map[string]ToolConfig),
 	}
 
-	if override.Sources.Guidelines != "" {
-		merged.Sources.Guidelines = override.Sources.Guidelines
-	}
-	if override.Sources.Commands != "" {
-		merged.Sources.Commands = override.Sources.Commands
-	}
-	if override.Sources.Skills != "" {
-		merged.Sources.Skills = override.Sources.Skills
-	}
-
-	if len(override.GlobalGuidelines) > 0 {
-		merged.GlobalGuidelines = append(merged.GlobalGuidelines, override.GlobalGuidelines...)
+	if override.Standard != "" {
+		merged.Standard = override.Standard
 	}
 
 	for name, tool := range base.Tools {
@@ -161,8 +146,9 @@ func mergeFileSpec(base, override *FileSpec) *FileSpec {
 	}
 
 	result := &FileSpec{
-		File: base.File,
-		Dir:  base.Dir,
+		File:   base.File,
+		Dir:    base.Dir,
+		Global: append([]string{}, base.Global...),
 	}
 
 	if override.File != "" {
@@ -170,6 +156,9 @@ func mergeFileSpec(base, override *FileSpec) *FileSpec {
 	}
 	if override.Dir != "" {
 		result.Dir = override.Dir
+	}
+	if len(override.Global) > 0 {
+		result.Global = append(result.Global, override.Global...)
 	}
 
 	return result
@@ -183,11 +172,16 @@ func normalizeToolConfig(cfg ToolsConfig) ToolsConfig {
 		if tool.Name == "" {
 			tool.Name = name
 		}
+		if tool.Guidelines != nil && tool.Guidelines.Global == nil {
+			tool.Guidelines.Global = []string{}
+		}
+		if tool.Commands != nil && tool.Commands.Global == nil {
+			tool.Commands.Global = []string{}
+		}
+		if tool.Skills != nil && tool.Skills.Global == nil {
+			tool.Skills.Global = []string{}
+		}
 		normalized.Tools[name] = tool
-	}
-
-	if normalized.GlobalGuidelines == nil {
-		normalized.GlobalGuidelines = []string{}
 	}
 
 	return normalized

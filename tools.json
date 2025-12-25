@@ -1,99 +1,100 @@
 {
-  "sources": {
-    "guidelines": "AGENTS.md",
-    "commands": "COMMANDS.md",
-    "skills": "skills"
-  },
-  "globalGuidelines": [
-    "~/.claude/CLAUDE.md",
-    "~/.claude/rules/",
-    "~/.codex/AGENTS.md",
-    "~/.gemini/GEMINI.md",
-    "~/.opencode/AGENTS.md",
-    "~/.config/opencode/AGENTS.md",
-    "~/.config/amp/AGENTS.md",
-    "~/.config/AGENTS.md",
-    "~/AGENTS.md"
-  ],
+  "standard": "opencode",
   "tools": {
     "claude": {
       "guidelines": {
         "file": "CLAUDE.md",
-        "dir": ""
+        "dir": "",
+        "global": ["~/.claude/CLAUDE.md", "~/.claude/rules/"]
       },
       "commands": {
         "file": "commands.md",
-        "dir": ".claude/commands"
+        "dir": ".claude/commands",
+        "global": ["~/.claude/commands/*.md"]
       },
       "skills": {
         "file": "SKILL.md",
-        "dir": ".claude/skills"
+        "dir": ".claude/skills",
+        "global": ["~/.claude/skills"]
       }
     },
     "cursor": {
       "guidelines": {
         "file": "agents.md",
-        "dir": ".cursor/rules"
+        "dir": ".cursor/rules",
+        "global": []
       },
       "commands": {
         "file": "commands.md",
-        "dir": ".cursor/commands"
+        "dir": ".cursor/commands",
+        "global": ["~/.cursor/commands/*.md"]
       }
     },
     "codex": {
       "guidelines": {
         "file": "AGENTS.md",
-        "dir": ""
+        "dir": "",
+        "global": ["~/.codex/AGENTS.md"]
       },
       "skills": {
         "file": "SKILL.md",
-        "dir": ".codex/skills"
+        "dir": ".codex/skills",
+        "global": ["~/.codex/skills"]
       }
     },
     "copilot": {
       "guidelines": {
         "file": "CLAUDE.md",
-        "dir": ""
+        "dir": "",
+        "global": []
       }
     },
     "gemini": {
       "guidelines": {
         "file": "GEMINI.md",
-        "dir": ""
+        "dir": "",
+        "global": ["~/.gemini/GEMINI.md"]
       },
       "commands": {
         "file": "*.toml",
-        "dir": ".gemini/commands"
+        "dir": ".gemini/commands",
+        "global": ["~/.gemini/commands/*.toml"]
       }
     },
     "opencode": {
       "guidelines": {
         "file": "AGENTS.md",
-        "dir": ""
+        "dir": "",
+        "global": ["~/.opencode/AGENTS.md", "~/.config/opencode/AGENTS.md"]
       },
       "commands": {
         "file": "*.md",
-        "dir": ".opencode/command"
+        "dir": ".opencode/command",
+        "global": ["~/.opencode/command/*.md", "~/.config/opencode/command/*.md"]
       },
       "skills": {
         "file": "SKILL.md",
-        "dir": ".opencode/skill"
+        "dir": ".opencode/skill",
+        "global": ["~/.opencode/skill", "~/.config/opencode/skill"]
       }
     },
     "qwen": {
       "guidelines": {
         "file": "QWEN.md",
-        "dir": ""
+        "dir": "",
+        "global": []
       }
     },
     "amp": {
       "guidelines": {
         "file": "AGENTS.md",
-        "dir": ""
+        "dir": "",
+        "global": ["~/.config/amp/AGENTS.md", "~/.config/AGENTS.md"]
       },
       "commands": {
         "file": "*",
-        "dir": ".agents/commands"
+        "dir": ".agents/commands",
+        "global": ["~/.config/amp/commands/*"]
       }
     }
   }

@@ -142,7 +142,8 @@ func discoverGlobalOnly(cfg *ToolsConfig) []ManagedFile {
 }
 
 func inferToolFromFilename(cfg *ToolsConfig, filename string) string {
-	if filename == cfg.Sources.Guidelines {
+	standardTool := getStandardTool(cfg)
+	if standardTool != nil && standardTool.Guidelines != nil && filename == standardTool.Guidelines.File {
 		return strings.ToUpper(strings.TrimSuffix(filename, ".md"))
 	}
 
@@ -153,6 +154,17 @@ func inferToolFromFilename(cfg *ToolsConfig, filename string) string {
 	}
 
 	return ""
+}
+
+func getStandardTool(cfg *ToolsConfig) *ToolConfig {
+	if cfg.Standard == "" {
+		return nil
+	}
+	tool, exists := cfg.Tools[cfg.Standard]
+	if !exists {
+		return nil
+	}
+	return &tool
 }
 
 // fileExists checks if a file exists
@@ -217,10 +229,16 @@ func allowedToolDirs(cfg *ToolsConfig, specSelector func(ToolConfig) *FileSpec) 
 }
 
 func globalGuidelinePaths(cfg *ToolsConfig) []string {
-	paths := make([]string, len(cfg.GlobalGuidelines))
-	for i, path := range cfg.GlobalGuidelines {
-		paths[i] = expandHomePath(path)
+	var paths []string
+
+	for _, tool := range cfg.Tools {
+		if tool.Guidelines != nil {
+			for _, path := range tool.Guidelines.Global {
+				paths = append(paths, expandHomePath(path))
+			}
+		}
 	}
+
 	return paths
 }
 
