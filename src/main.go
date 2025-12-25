@@ -14,157 +14,262 @@ func main() {
 		os.Exit(1)
 	}
 
-	command := args[0]
-	cmdArgs := args[1:]
+	module := args[0]
 
-	switch command {
-	case "list":
-		cmdList(cmdArgs)
-	case "sync":
-		cmdSync(cmdArgs)
-	case "rm":
-		cmdRm(cmdArgs)
-	case "list-commands":
-		cmdListCommands(cmdArgs)
-	case "sync-commands":
-		cmdSyncCommands(cmdArgs)
-	case "rm-commands":
-		cmdRmCommands(cmdArgs)
-	case "list-skills":
-		cmdListSkills(cmdArgs)
-	case "sync-skills":
-		cmdSyncSkills(cmdArgs)
-	case "help", "-h", "--help":
+	if module == "help" || module == "-h" || module == "--help" {
 		printHelp()
+		os.Exit(0)
+	}
+
+	if len(args) < 2 {
+		printModuleHelp(module)
+		os.Exit(0)
+	}
+
+	command := args[1]
+	cmdArgs := args[2:]
+
+	switch module {
+	case "rule":
+		switch command {
+		case "list":
+			cmdRuleList(cmdArgs)
+		case "sync":
+			cmdRuleSync(cmdArgs)
+		case "rm":
+			cmdRuleRm(cmdArgs)
+		case "help", "-h", "--help":
+			printRuleHelp()
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown command for module 'rule': %s\n", command)
+			os.Exit(1)
+		}
+	case "command":
+		switch command {
+		case "list":
+			cmdCommandList(cmdArgs)
+		case "sync":
+			cmdCommandSync(cmdArgs)
+		case "rm":
+			cmdCommandRm(cmdArgs)
+		case "help", "-h", "--help":
+			printCommandHelp()
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown command for module 'command': %s\n", command)
+			os.Exit(1)
+		}
+	case "skill":
+		switch command {
+		case "list":
+			cmdSkillList(cmdArgs)
+		case "sync":
+			cmdSkillSync(cmdArgs)
+		case "help", "-h", "--help":
+			printSkillHelp()
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown command for module 'skill': %s\n", command)
+			os.Exit(1)
+		}
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		os.Exit(1)
+		unknownModule(module)
 	}
 }
 
+func printModuleHelp(module string) {
+	switch module {
+	case "rule":
+		printRuleHelp()
+	case "command":
+		printCommandHelp()
+	case "skill":
+		printSkillHelp()
+	default:
+		unknownModule(module)
+	}
+}
+
+const (
+	indentFlags = "                             "
+)
+
+func unknownModule(module string) {
+	fmt.Fprintf(os.Stderr, "Unknown module: %s\n", module)
+	fmt.Fprintln(os.Stderr, "\nAvailable modules: rule, command, skill")
+	fmt.Fprintln(os.Stderr, "\nUsage: agents <module> <command> [flags]")
+	os.Exit(1)
+}
+
+func printFlag(flag, description string) {
+	fmt.Printf("%s%-10s %s\n", indentFlags, flag, description)
+}
+
 func printHelp() {
+	help := `Agent Guidelines Manager CLI
+
+Usage: agents <module> <command> [flags]
+
+Modules:
+  rule                     Manage guideline files (AGENTS.md, CLAUDE.md, etc.)
+                           Commands: list, sync, rm
+
+  command                  Manage command files for agents
+                           Commands: list, sync, rm
+
+  skill                    Manage Claude Code skills
+                           Commands: list, sync
+
+Examples:
+  agents rule list
+  agents rule sync --claude --cursor
+  agents rule rm --claude
+  agents command list
+  agents command sync --claude
+  agents skill list
+  agents skill sync --dry-run
+
+For module-specific help:
+  agents rule help
+  agents command help
+  agents skill help
+`
+
+	fmt.Print(help)
+}
+
+func printRuleHelp() {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
 	}
 
-	help := `Agent Guidelines Manager CLI
+	fmt.Println("Agent Guidelines Manager CLI - Rule Module")
+	fmt.Println()
+	fmt.Println("Usage: agents rule <command> [flags]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  list                     Discover and display all guideline files with metadata")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	printFlag("--verbose", "Show detailed output")
+	printFlag("-g", "Show only user/system-wide agent guideline files")
+	printFlag("--global", "Show only user/system-wide agent guideline files")
+	printFlag("--<agent>", "Filter by specific agent files (e.g., --claude, --cursor)")
 
-Usage: agents <command> [flags]
-
-Commands:
-  list                     Discover and display all guideline files with metadata
-                           Flags:
-                             --verbose    Show detailed output
-                             -g           Show only user/system-wide agent guideline files
-                             --global     Show only user/system-wide agent guideline files
-                             --<agent>    Filter by specific agent files (e.g., --claude, --cursor)
-
-  sync                     Find all guideline source files and create symlinks
-                           Flags:`
-
-	fmt.Print(help)
-
+	fmt.Println()
+	fmt.Println("  sync                     Find all guideline source files and create symlinks")
+	fmt.Printf("%sFlags:\n", indentFlags)
 	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
 		flagName := getProviderFlagName(cfg, agent)
 		guidelines := cfg.Providers[agent].Guidelines
 		if guidelines != nil {
-			fmt.Printf("                             --%-10s Create %s symlinks\n", flagName, guidelines.File)
+			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", guidelines.File))
 		}
 	}
+	printFlag("--dry-run", "Show what would be created without making changes")
+	printFlag("--verbose", "Show detailed output of all operations")
 
-	help2 := `                             --dry-run    Show what would be created without making changes
-                             --verbose    Show detailed output of all operations
-
-  rm                       Delete guideline files for specified agents
-                           Flags:`
-
-	fmt.Print(help2)
-
+	fmt.Println()
+	fmt.Println("  rm                       Delete guideline files for specified agents")
+	fmt.Printf("%sFlags:\n", indentFlags)
 	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Guidelines }) {
 		flagName := getProviderFlagName(cfg, agent)
 		guidelines := cfg.Providers[agent].Guidelines
 		if guidelines != nil {
-			fmt.Printf("                             --%-10s Delete %s files\n", flagName, guidelines.File)
+			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", guidelines.File))
 		}
 	}
+	printFlag("--dry-run", "Show what would be deleted without making changes")
+	printFlag("--verbose", "Show detailed output of all operations")
 
-	help3 := `                             --dry-run    Show what would be deleted without making changes
-                             --verbose    Show detailed output of all operations
-
-  list-commands             Discover and display all command files with metadata
-                           Flags:
-                             --verbose    Show detailed output
-                             --<agent>    Filter by specific command files (e.g., --claude, --cursor)
-
-  sync-commands             Find all command source files and create symlinks
-                           Flags:`
-
-	fmt.Print(help3)
-
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		flagName := getProviderFlagName(cfg, agent)
-		commands := cfg.Providers[agent].Commands
-		if commands != nil {
-			fmt.Printf("                             --%-10s Create %s symlinks\n", flagName, commands.File)
-		}
-	}
-
-	help4 := `                             --dry-run    Show what would be created without making changes
-                             --verbose    Show detailed output of all operations
-
-  rm-commands               Delete command files for specified agents
-                           Flags:`
-
-	fmt.Print(help4)
-
-	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
-		flagName := getProviderFlagName(cfg, agent)
-		commands := cfg.Providers[agent].Commands
-		if commands != nil {
-			fmt.Printf("                             --%-10s Delete %s files\n", flagName, commands.File)
-		}
-	}
-
-	help5 := `                             --dry-run    Show what would be deleted without making changes
-                             --verbose    Show detailed output of all operations
-
-  list-skills              Discover and display all Claude Code skills
-                           Flags:
-                             --verbose    Show detailed output including metadata
-
-  sync-skills              Sync skills from source directory to .claude/skills
-                           Flags:
-                             --dry-run    Show what would be synced without making changes
-                             --verbose    Show detailed output of all operations
-
-  help                     Show this help message
-
-Examples:
-  agents list
-  agents list --verbose
-  agents list --claude
-  agents list --gemini --global
-  agents list --claude --cursor --verbose
-  agents sync --claude --cursor
-  agents sync --claude --cursor --dry-run
-  agents rm --claude
-  agents rm --cursor --gemini --dry-run
-  agents list-commands
-  agents list-commands --claude
-  agents sync-commands --claude --cursor
-  agents rm-commands --claude
-  agents list-skills
-  agents list-skills --verbose
-  agents sync-skills
-  agents sync-skills --dry-run --verbose
-`
-
-	fmt.Print(help5)
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  agents rule list")
+	fmt.Println("  agents rule list --verbose")
+	fmt.Println("  agents rule list --claude")
+	fmt.Println("  agents rule list --gemini --global")
+	fmt.Println("  agents rule list --claude --cursor --verbose")
+	fmt.Println("  agents rule sync --claude --cursor")
+	fmt.Println("  agents rule sync --claude --cursor --dry-run")
+	fmt.Println("  agents rule rm --claude")
+	fmt.Println("  agents rule rm --cursor --gemini --dry-run")
 }
 
-func cmdList(argv []string) {
+func printCommandHelp() {
+	cfg, err := getProviderConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Agent Guidelines Manager CLI - Command Module")
+	fmt.Println()
+	fmt.Println("Usage: agents command <command> [flags]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  list                     Discover and display all command files with metadata")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	printFlag("--verbose", "Show detailed output")
+	printFlag("--<agent>", "Filter by specific command files (e.g., --claude, --cursor)")
+
+	fmt.Println()
+	fmt.Println("  sync                     Find all command source files and create symlinks")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
+		flagName := getProviderFlagName(cfg, agent)
+		commands := cfg.Providers[agent].Commands
+		if commands != nil {
+			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", commands.File))
+		}
+	}
+	printFlag("--dry-run", "Show what would be created without making changes")
+	printFlag("--verbose", "Show detailed output of all operations")
+
+	fmt.Println()
+	fmt.Println("  rm                       Delete command files for specified agents")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	for _, agent := range getProviderNames(cfg, func(p ProviderConfig) *FileSpec { return p.Commands }) {
+		flagName := getProviderFlagName(cfg, agent)
+		commands := cfg.Providers[agent].Commands
+		if commands != nil {
+			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", commands.File))
+		}
+	}
+	printFlag("--dry-run", "Show what would be deleted without making changes")
+	printFlag("--verbose", "Show detailed output of all operations")
+
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  agents command list")
+	fmt.Println("  agents command list --claude")
+	fmt.Println("  agents command sync --claude --cursor")
+	fmt.Println("  agents command rm --claude")
+}
+
+func printSkillHelp() {
+	fmt.Println("Agent Guidelines Manager CLI - Skill Module")
+	fmt.Println()
+	fmt.Println("Usage: agents skill <command> [flags]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  list                     Discover and display all Claude Code skills")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	printFlag("--verbose", "Show detailed output including metadata")
+
+	fmt.Println()
+	fmt.Println("  sync                     Sync skills from source directory to .claude/skills")
+	fmt.Printf("%sFlags:\n", indentFlags)
+	printFlag("--dry-run", "Show what would be synced without making changes")
+	printFlag("--verbose", "Show detailed output of all operations")
+
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  agents skill list")
+	fmt.Println("  agents skill list --verbose")
+	fmt.Println("  agents skill sync")
+	fmt.Println("  agents skill sync --dry-run --verbose")
+}
+
+func cmdRuleList(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -185,7 +290,7 @@ func cmdList(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("list", parsed.Unknown)
+	ensureNoUnknownFlags("rule list", parsed.Unknown)
 
 	verbose := parsed.Flags["--verbose"]
 	global := parsed.Flags["-g"] || parsed.Flags["--global"]
@@ -207,7 +312,7 @@ func cmdList(argv []string) {
 	formatList(files, verbose, "No guideline files found.")
 }
 
-func cmdSync(argv []string) {
+func cmdRuleSync(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -227,7 +332,7 @@ func cmdSync(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("sync", parsed.Unknown)
+	ensureNoUnknownFlags("rule sync", parsed.Unknown)
 
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
@@ -248,7 +353,7 @@ func cmdSync(argv []string) {
 	formatSyncSummary(cfg.Sources.Guidelines, len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
 }
 
-func cmdRm(argv []string) {
+func cmdRuleRm(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -268,7 +373,7 @@ func cmdRm(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("rm", parsed.Unknown)
+	ensureNoUnknownFlags("rule rm", parsed.Unknown)
 
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
@@ -279,7 +384,7 @@ func cmdRm(argv []string) {
 	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Guidelines, func(p ProviderConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
 }
 
-func cmdListCommands(argv []string) {
+func cmdCommandList(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -298,7 +403,7 @@ func cmdListCommands(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("list-commands", parsed.Unknown)
+	ensureNoUnknownFlags("command list", parsed.Unknown)
 
 	verbose := parsed.Flags["--verbose"]
 
@@ -313,7 +418,7 @@ func cmdListCommands(argv []string) {
 	formatList(files, verbose, "No command files found.")
 }
 
-func cmdSyncCommands(argv []string) {
+func cmdCommandSync(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -333,7 +438,7 @@ func cmdSyncCommands(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("sync-commands", parsed.Unknown)
+	ensureNoUnknownFlags("command sync", parsed.Unknown)
 
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
@@ -354,7 +459,7 @@ func cmdSyncCommands(argv []string) {
 	formatSyncSummary(cfg.Sources.Commands, len(sourceFiles), result.Created, result.Skipped, verbose, result.Operations)
 }
 
-func cmdRmCommands(argv []string) {
+func cmdCommandRm(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -374,7 +479,7 @@ func cmdRmCommands(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("rm-commands", parsed.Unknown)
+	ensureNoUnknownFlags("command rm", parsed.Unknown)
 
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
@@ -385,7 +490,7 @@ func cmdRmCommands(argv []string) {
 	deleteManagedFiles(selectedAgents, cfg, cfg.Sources.Commands, func(p ProviderConfig) *FileSpec { return p.Commands }, dryRun, verbose)
 }
 
-func cmdListSkills(argv []string) {
+func cmdSkillList(argv []string) {
 	allowedFlags := make(map[string]bool)
 	allowedFlags["--verbose"] = true
 
@@ -394,14 +499,14 @@ func cmdListSkills(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("list-skills", parsed.Unknown)
+	ensureNoUnknownFlags("skill list", parsed.Unknown)
 
 	verbose := parsed.Flags["--verbose"]
 	skills := discoverSkills()
 	formatSkillsList(skills, verbose)
 }
 
-func cmdSyncSkills(argv []string) {
+func cmdSkillSync(argv []string) {
 	cfg, err := getProviderConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -417,7 +522,7 @@ func cmdSyncSkills(argv []string) {
 		printHelp()
 		os.Exit(0)
 	}
-	ensureNoUnknownFlags("sync-skills", parsed.Unknown)
+	ensureNoUnknownFlags("skill sync", parsed.Unknown)
 
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]

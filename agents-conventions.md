@@ -66,7 +66,7 @@ Amp Code prioritizes AGENTS.md for guiding structure, builds, and conventions, w
 
 - **Project Level**: Place at workspace root, current directory, or subtrees; Amp loads based on edited files.
 - **User/System Level**: Use $HOME/.config/amp/AGENTS.md or $HOME/.config/AGENTS.md for universal rules.
-- **How to Configure**: Generate via Amp if absent, or update with prompts. Use @-mentions for external files (e.g., @doc/*.md) and YAML front matter for globs (e.g., apply to **/*.ts). Migrate from other formats with symlinks. Debug with /agent-files.
+- **How to Configure**: Generate via Amp if absent, or update with prompts. Use @-mentions for external files (e.g., @doc/*.md) and YAML front matter for globs (e.g., apply to **/*.go). Migrate from other formats with symlinks. Debug with /agent-files.
 - **Relevant Documentation**: [Amp Owner’s Manual](https://ampcode.com/manual).
 
 #### Opencode: AGENTS.md Integrated with JSON Config

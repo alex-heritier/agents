@@ -4,14 +4,31 @@
 Sync AGENTS.md files (single source of truth) across project hierarchy by creating symlinks to agent-specific guideline files.
 
 ## Core Commands
-- `list` - Discover and display all guideline files (AGENTS.md, CLAUDE.md, .cursor/rules/*, etc.) with metadata
-- `sync [flags]` - Find all AGENTS.md files recursively from current directory and create symlinks
+The CLI follows a module-based command structure: `agents <module> <command> [flags]`
+
+### Modules
+
+**rule** - Manage guideline files (AGENTS.md, CLAUDE.md, .cursor/rules/*, etc.)
+- `agents rule list` - Discover and display all guideline files with metadata
+- `agents rule sync [flags]` - Find all guideline source files and create symlinks
+- `agents rule rm [flags]` - Delete guideline files for specified agents
+
+**command** - Manage command files for agents
+- `agents command list` - Discover and display all command files with metadata
+- `agents command sync [flags]` - Find all command source files and create symlinks
+- `agents command rm [flags]` - Delete command files for specified agents
+
+**skill** - Manage Claude Code skills
+- `agents skill list` - Discover and display all Claude Code skills
+- `agents skill sync [flags]` - Sync skills from source directory to .claude/skills
 
 ## Flags
 - `--claude` - Create CLAUDE.md symlinks pointing to AGENTS.md
 - `--cursor` - Create .cursor/rules/agents.md symlinks (creates .cursor/rules/ dir if needed)
 - `--dry-run` - Show what would be created without making changes
 - `--verbose` - Show detailed output of all operations
+- `--global`, `-g` - Show only user/system-wide agent guideline files (for `rule list`)
+- `--<agent>` - Filter by specific agent files (e.g., --claude, --cursor)
 
 ## Discovery Rules
 1. Search recursively from current directory downward
@@ -43,8 +60,40 @@ Sync AGENTS.md files (single source of truth) across project hierarchy by creati
 ## Quick Start (Development)
 1. Modify code files (main.go, discovery.go, symlink.go, output.go, config.go, args.go, paths.go, types.go)
 2. Run `go build -o agents` to compile
-3. Test with `./agents <command>`
+3. Test with `./agents <module> <command>`
 4. Add new agent types in providers.json configuration file
+
+## Examples
+```bash
+# List guideline files
+agents rule list
+agents rule list --verbose
+agents rule list --claude
+agents rule list --gemini --global
+agents rule list --claude --cursor --verbose
+
+# Sync guideline files
+agents rule sync --claude --cursor
+agents rule sync --claude --cursor --dry-run
+
+# Delete guideline files
+agents rule rm --claude
+agents rule rm --cursor --gemini --dry-run
+
+# List command files
+agents command list
+agents command list --claude
+
+# Sync command files
+agents command sync --claude --cursor
+agents command rm --claude
+
+# Manage skills
+agents skill list
+agents skill list --verbose
+agents skill sync
+agents skill sync --dry-run --verbose
+```
 
 ## Agent Configuration Reference
 
