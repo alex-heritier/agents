@@ -2,14 +2,22 @@ package main
 
 // FileSpec defines a file specification with directory, filename, and global paths
 type FileSpec struct {
-	File   string   `json:"file"`
-	Dir    string   `json:"dir"`
-	Global []string `json:"global,omitempty"`
+	Pattern string   `json:"pattern"`
+	Global  []string `json:"global,omitempty"`
 }
 
 type ToolConfig struct {
-	Name       string    `json:"name,omitempty"`
-	Guidelines *FileSpec `json:"guidelines,omitempty"`
+	Name    string   `json:"name,omitempty"`
+	Pattern string   `json:"pattern"`
+	Global  []string `json:"global,omitempty"`
+}
+
+// ToSpec returns a FileSpec from the flattened ToolConfig
+func (t ToolConfig) ToSpec() *FileSpec {
+	return &FileSpec{
+		Pattern: t.Pattern,
+		Global:  t.Global,
+	}
 }
 
 type ToolsConfig struct {
@@ -21,7 +29,7 @@ type ToolsConfig struct {
 type ManagedFile struct {
 	Path      string
 	Dir       string
-	Tool      string
+	Tools     []string
 	File      string
 	IsSymlink bool
 	Size      int64

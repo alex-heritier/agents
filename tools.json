@@ -2,60 +2,49 @@
   "standard": "opencode",
   "tools": {
     "claude": {
-      "guidelines": {
-        "file": "CLAUDE.md",
-        "dir": "",
-        "global": ["~/.claude/CLAUDE.md", "~/.claude/rules/"]
-      }
+      "pattern": "CLAUDE.md",
+      "global": [
+        "~/.claude/CLAUDE.md",
+        "~/.claude/rules/"
+      ]
     },
     "cursor": {
-      "guidelines": {
-        "file": "agents.md",
-        "dir": ".cursor/rules",
-        "global": []
-      }
+      "pattern": ".cursor/rules/agents.md",
+      "global": []
     },
     "codex": {
-      "guidelines": {
-        "file": "AGENTS.md",
-        "dir": "",
-        "global": ["~/.codex/AGENTS.md"]
-      }
+      "pattern": "AGENTS.md",
+      "global": [
+        "~/.codex/AGENTS.md"
+      ]
     },
     "copilot": {
-      "guidelines": {
-        "file": "CLAUDE.md",
-        "dir": "",
-        "global": []
-      }
+      "pattern": "CLAUDE.md",
+      "global": []
     },
     "gemini": {
-      "guidelines": {
-        "file": "GEMINI.md",
-        "dir": "",
-        "global": ["~/.gemini/GEMINI.md"]
-      }
+      "pattern": "GEMINI.md",
+      "global": [
+        "~/.gemini/GEMINI.md"
+      ]
     },
     "opencode": {
-      "guidelines": {
-        "file": "AGENTS.md",
-        "dir": "",
-        "global": ["~/.opencode/AGENTS.md", "~/.config/opencode/AGENTS.md"]
-      }
+      "pattern": "AGENTS.md",
+      "global": [
+        "~/.opencode/AGENTS.md",
+        "~/.config/opencode/AGENTS.md"
+      ]
     },
     "qwen": {
-      "guidelines": {
-        "file": "QWEN.md",
-        "dir": "",
-        "global": []
-      }
+      "pattern": "QWEN.md",
+      "global": []
     },
     "amp": {
-      "guidelines": {
-        "file": "AGENTS.md",
-        "dir": "",
-        "global": ["~/.config/amp/AGENTS.md", "~/.config/AGENTS.md"]
-      }
+      "pattern": "AGENTS.md",
+      "global": [
+        "~/.config/amp/AGENTS.md",
+        "~/.config/AGENTS.md"
+      ]
     }
   }
 }

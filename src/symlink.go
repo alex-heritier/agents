@@ -41,23 +41,36 @@ func syncSymlinks(
 			}
 
 			spec := specSelector(tool)
-			if spec == nil {
+			if spec == nil || spec.Pattern == "" {
 				continue
 			}
 
 			var opResult SyncResult
-			// Determine target filename:
-			// - For same-directory symlinks (spec.Dir == ""), use spec.File
-			// - For subdirectory symlinks (spec.Dir != ""), preserve source filename
-			targetFile := filename
-			if spec.Dir == "" {
-				targetFile = spec.File
+
+			// Decompose pattern into dir and filename
+			pattern := filepath.FromSlash(spec.Pattern)
+			targetDir := ""
+			targetFile := pattern
+
+			if strings.Contains(pattern, string(os.PathSeparator)) {
+				targetDir = filepath.Dir(pattern)
+				targetFile = filepath.Base(pattern)
+
+				if targetDir == "." {
+					targetDir = ""
+				}
 			}
 
-			if spec.Dir == "" {
+			// If targetFile contains wildcard, use source filename instead
+			// (Assuming if user put wildcard, they want to map source name)
+			if strings.Contains(targetFile, "*") {
+				targetFile = filename
+			}
+
+			if targetDir == "" {
 				opResult = createSymlink(dir, filename, targetFile, dryRun, verbose)
 			} else {
-				opResult = createSymlinkInDir(dir, filename, spec.Dir, targetFile, dryRun, verbose)
+				opResult = createSymlinkInDir(dir, filename, targetDir, targetFile, dryRun, verbose)
 			}
 
 			result.Created += opResult.Created
@@ -67,58 +80,6 @@ func syncSymlinks(
 	}
 
 	return result
-}
-
-func deleteManagedFiles(
-	selectedTools []string,
-	cfg *ToolsConfig,
-	sourceName string,
-	specSelector func(ToolConfig) *FileSpec,
-	dryRun bool,
-	verbose bool,
-) {
-	deleted := 0
-	notFound := 0
-	operations := []string{}
-
-	allFiles := discoverAll(cfg, sourceName, specSelector)
-
-	for _, file := range allFiles {
-		shouldDelete := false
-		for _, tool := range selectedTools {
-			if strings.EqualFold(file.Tool, tool) {
-				shouldDelete = true
-				break
-			}
-		}
-
-		if !shouldDelete {
-			continue
-		}
-
-		if dryRun {
-			deleted++
-			if verbose {
-				operations = append(operations, fmt.Sprintf("would delete: %s", file.Path))
-			}
-			continue
-		}
-
-		err := os.Remove(file.Path)
-		if err != nil {
-			notFound++
-			if verbose {
-				operations = append(operations, fmt.Sprintf("error: %s (%v)", file.Path, err))
-			}
-		} else {
-			deleted++
-			if verbose {
-				operations = append(operations, fmt.Sprintf("deleted: %s", file.Path))
-			}
-		}
-	}
-
-	formatRmSummary(deleted, notFound, verbose, operations)
 }
 
 // createSymlink creates a symlink in the same directory

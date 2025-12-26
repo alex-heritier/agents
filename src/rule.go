@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -19,7 +20,7 @@ func cmdRuleList(argv []string) {
 	allowedFlags["--global"] = true
 	allowedFlags["-g"] = true
 
-	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }) {
 		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
@@ -33,14 +34,14 @@ func cmdRuleList(argv []string) {
 	verbose := parsed.Flags["--verbose"]
 	global := parsed.Flags["-g"] || parsed.Flags["--global"]
 
-	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }, parsed.Flags)
 	filterAgents := selection.Selected
 
 	var files []ManagedFile
 	if global {
 		files = discoverGlobalOnly(cfg)
 	} else {
-		files = discoverAll(cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.Guidelines })
+		files = discoverAll(cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.ToSpec() })
 	}
 
 	if len(filterAgents) > 0 {
@@ -61,7 +62,7 @@ func cmdRuleSync(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }) {
 		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
@@ -75,7 +76,7 @@ func cmdRuleSync(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
 	sourceFiles := discoverSources(getStandardGuidelineFile(cfg))
@@ -83,7 +84,7 @@ func cmdRuleSync(argv []string) {
 		sourceFiles,
 		selectedAgents,
 		cfg,
-		func(p ToolConfig) *FileSpec { return p.Guidelines },
+		func(p ToolConfig) *FileSpec { return p.ToSpec() },
 		dryRun,
 		verbose,
 	)
@@ -102,7 +103,7 @@ func cmdRuleRm(argv []string) {
 	allowedFlags["--dry-run"] = true
 	allowedFlags["--verbose"] = true
 
-	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+	for _, name := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }) {
 		allowedFlags["--"+getToolFlagName(cfg, name)] = true
 	}
 
@@ -116,10 +117,10 @@ func cmdRuleRm(argv []string) {
 	dryRun := parsed.Flags["--dry-run"]
 	verbose := parsed.Flags["--verbose"]
 
-	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }, parsed.Flags)
+	selection := collectToolFlags(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }, parsed.Flags)
 	selectedAgents := ensureToolsSelected(cfg, selection.Available, selection.Selected)
 
-	deleteManagedFiles(selectedAgents, cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.Guidelines }, dryRun, verbose)
+	deleteManagedFiles(selectedAgents, cfg, getStandardGuidelineFile(cfg), func(p ToolConfig) *FileSpec { return p.ToSpec() }, dryRun, verbose)
 }
 
 func printRuleHelp() {
@@ -144,11 +145,11 @@ func printRuleHelp() {
 	fmt.Println()
 	fmt.Println("  sync                     Find all guideline source files and create symlinks")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }) {
 		flagName := getToolFlagName(cfg, agent)
-		guidelines := cfg.Tools[agent].Guidelines
-		if guidelines != nil {
-			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", guidelines.File))
+		tool := cfg.Tools[agent]
+		if tool.Pattern != "" {
+			printFlag("--"+flagName, fmt.Sprintf("Create %s symlinks", tool.Pattern))
 		}
 	}
 	printFlag("--dry-run", "Show what would be created without making changes")
@@ -157,11 +158,11 @@ func printRuleHelp() {
 	fmt.Println()
 	fmt.Println("  rm                       Delete guideline files for specified agents")
 	fmt.Printf("%sFlags:\n", indentFlags)
-	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.Guidelines }) {
+	for _, agent := range getToolNames(cfg, func(p ToolConfig) *FileSpec { return p.ToSpec() }) {
 		flagName := getToolFlagName(cfg, agent)
-		guidelines := cfg.Tools[agent].Guidelines
-		if guidelines != nil {
-			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", guidelines.File))
+		tool := cfg.Tools[agent]
+		if tool.Pattern != "" {
+			printFlag("--"+flagName, fmt.Sprintf("Delete %s files", tool.Pattern))
 		}
 	}
 	printFlag("--dry-run", "Show what would be deleted without making changes")
@@ -254,12 +255,21 @@ func filterFilesByTools(files []ManagedFile, tools []string) []ManagedFile {
 
 	filtered := []ManagedFile{}
 	for _, file := range files {
-		fileLower := strings.ToLower(file.Tool)
-		for _, tool := range lower {
-			if fileLower == tool {
-				filtered = append(filtered, file)
+		matches := false
+		for _, fileTool := range file.Tools {
+			fileToolLower := strings.ToLower(fileTool)
+			for _, tool := range lower {
+				if fileToolLower == tool {
+					matches = true
+					break
+				}
+			}
+			if matches {
 				break
 			}
+		}
+		if matches {
+			filtered = append(filtered, file)
 		}
 	}
 	return filtered
@@ -275,8 +285,65 @@ func ensureNoUnknownFlags(commandName string, unknownFlags []string) {
 
 func getStandardGuidelineFile(cfg *ToolsConfig) string {
 	standardTool := getStandardTool(cfg)
-	if standardTool != nil && standardTool.Guidelines != nil {
-		return standardTool.Guidelines.File
+	if standardTool != nil && standardTool.Pattern != "" {
+		return filepath.Base(filepath.FromSlash(standardTool.Pattern))
 	}
 	return "AGENTS.md"
+}
+
+func deleteManagedFiles(
+	selectedTools []string,
+	cfg *ToolsConfig,
+	sourceName string,
+	specSelector func(ToolConfig) *FileSpec,
+	dryRun bool,
+	verbose bool,
+) {
+	deleted := 0
+	notFound := 0
+	operations := []string{}
+
+	allFiles := discoverAll(cfg, sourceName, specSelector)
+
+	for _, file := range allFiles {
+		shouldDelete := false
+		for _, tool := range selectedTools {
+			for _, fileTool := range file.Tools {
+				if strings.EqualFold(fileTool, tool) {
+					shouldDelete = true
+					break
+				}
+			}
+			if shouldDelete {
+				break
+			}
+		}
+
+		if !shouldDelete {
+			continue
+		}
+
+		if dryRun {
+			deleted++
+			if verbose {
+				operations = append(operations, fmt.Sprintf("would delete: %s", file.Path))
+			}
+			continue
+		}
+
+		err := os.Remove(file.Path)
+		if err != nil {
+			notFound++
+			if verbose {
+				operations = append(operations, fmt.Sprintf("error: %s (%v)", file.Path, err))
+			}
+		} else {
+			deleted++
+			if verbose {
+				operations = append(operations, fmt.Sprintf("deleted: %s", file.Path))
+			}
+		}
+	}
+
+	formatRmSummary(deleted, notFound, verbose, operations)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -49,6 +50,24 @@ func matchesPattern(filename, pattern string) bool {
 	return false
 }
 
+// matchToolPattern checks if a file matches a tool's pattern
+// If pattern contains separators, it matches against the relative path.
+// Otherwise, it matches against the filename (effectively ** / pattern).
+func matchToolPattern(pattern, filename, relPath string) bool {
+	// Normalize pattern to use OS separators
+	pattern = filepath.FromSlash(pattern)
+
+	// If pattern contains separators, match against relative path
+	if strings.Contains(pattern, string(os.PathSeparator)) {
+		matched, _ := filepath.Match(pattern, relPath)
+		return matched
+	}
+
+	// Otherwise match against filename
+	matched, _ := filepath.Match(pattern, filename)
+	return matched
+}
+
 func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConfig) *FileSpec) []ManagedFile {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -69,34 +88,46 @@ func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConf
 		dir := pathDirname(path)
 		filename := info.Name()
 
-		agent := ""
+		// Calculate relative path for pattern matching
+		relPath, err := filepath.Rel(cwd, path)
+		if err != nil {
+			return "continue" // Should not happen for paths walked from cwd
+		}
+
+		var matchedTools []string
 		if matchesPattern(filename, sourceName) {
 			standardTool := getStandardTool(cfg)
 			if standardTool != nil {
 				standardSpec := specSelector(*standardTool)
-				if standardSpec != nil && standardSpec.Dir != "" && !strings.Contains(path, standardSpec.Dir) {
-					return "continue"
+				// Verify it matches the standard tool pattern
+				if standardSpec != nil && standardSpec.Pattern != "" {
+					if !matchToolPattern(standardSpec.Pattern, filename, relPath) {
+						return "continue"
+					}
 				}
 			}
-			agent = strings.ToUpper(strings.TrimSuffix(filename, ".md"))
+			matchedTools = append(matchedTools, strings.ToUpper(strings.TrimSuffix(filename, ".md")))
 		} else {
-			for agentName, tool := range cfg.Tools {
+			// Sort keys for deterministic iteration order, though with []string it matters less
+			// but good for consistency
+			var toolNames []string
+			for name := range cfg.Tools {
+				toolNames = append(toolNames, name)
+			}
+			sort.Strings(toolNames)
+
+			for _, agentName := range toolNames {
+				tool := cfg.Tools[agentName]
 				spec := specSelector(tool)
 				if spec == nil {
 					continue
 				}
-				if matchesPattern(filename, spec.File) {
-					if spec.Dir == "" {
-						agent = strings.ToUpper(agentName)
-						break
-					}
-					if strings.Contains(path, spec.Dir) {
-						agent = strings.ToUpper(agentName)
-						break
-					}
+
+				if matchToolPattern(spec.Pattern, filename, relPath) {
+					matchedTools = append(matchedTools, strings.ToUpper(agentName))
 				}
 			}
-			if agent == "" {
+			if len(matchedTools) == 0 {
 				return "continue"
 			}
 		}
@@ -111,7 +142,7 @@ func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConf
 		files = append(files, ManagedFile{
 			Path:      path,
 			Dir:       dir,
-			Tool:      agent,
+			Tools:     matchedTools,
 			File:      filename,
 			IsSymlink: isSymlink,
 			Size:      info.Size(),
@@ -138,8 +169,8 @@ func discoverGlobalOnly(cfg *ToolsConfig) []ManagedFile {
 
 		filename := pathBasename(location)
 		dir := pathDirname(location)
-		agent := inferToolFromFilename(cfg, filename)
-		if agent == "" {
+		tools := inferToolsFromFilename(cfg, filename)
+		if len(tools) == 0 {
 			continue
 		}
 
@@ -152,7 +183,7 @@ func discoverGlobalOnly(cfg *ToolsConfig) []ManagedFile {
 		files = append(files, ManagedFile{
 			Path:      location,
 			Dir:       dir,
-			Tool:      agent,
+			Tools:     tools,
 			File:      filename,
 			IsSymlink: isSymlink,
 			Size:      info.Size(),
@@ -162,18 +193,43 @@ func discoverGlobalOnly(cfg *ToolsConfig) []ManagedFile {
 	return files
 }
 
-func inferToolFromFilename(cfg *ToolsConfig, filename string) string {
-	standardTool := getStandardTool(cfg)
-	if standardTool != nil && standardTool.Guidelines != nil && filename == standardTool.Guidelines.File {
-		return strings.ToUpper(strings.TrimSuffix(filename, ".md"))
-	}
+func inferToolsFromFilename(cfg *ToolsConfig, filename string) []string {
+	var matchedTools []string
 
-	for agentName, tool := range cfg.Tools {
-		if tool.Guidelines != nil && filename == tool.Guidelines.File {
-			return strings.ToUpper(agentName)
+	standardTool := getStandardTool(cfg)
+	if standardTool != nil {
+		// Use base of pattern for comparison
+		base := filepath.Base(filepath.FromSlash(standardTool.Pattern))
+		matched, _ := filepath.Match(base, filename)
+		if matched {
+			matchedTools = append(matchedTools, strings.ToUpper(strings.TrimSuffix(filename, ".md")))
 		}
 	}
 
+	var toolNames []string
+	for name := range cfg.Tools {
+		toolNames = append(toolNames, name)
+	}
+	sort.Strings(toolNames)
+
+	for _, agentName := range toolNames {
+		tool := cfg.Tools[agentName]
+		base := filepath.Base(filepath.FromSlash(tool.Pattern))
+		matched, _ := filepath.Match(base, filename)
+		if matched {
+			matchedTools = append(matchedTools, strings.ToUpper(agentName))
+		}
+	}
+
+	return matchedTools
+}
+
+// Keep the old signature for backward compatibility if needed, but updated logic
+func inferToolFromFilename(cfg *ToolsConfig, filename string) string {
+	tools := inferToolsFromFilename(cfg, filename)
+	if len(tools) > 0 {
+		return tools[0]
+	}
 	return ""
 }
 
@@ -236,13 +292,19 @@ func allowedToolDirs(cfg *ToolsConfig, specSelector func(ToolConfig) *FileSpec) 
 
 	for _, tool := range cfg.Tools {
 		spec := specSelector(tool)
-		if spec == nil || spec.Dir == "" {
+		if spec == nil || spec.Pattern == "" {
 			continue
 		}
 
-		parts := strings.Split(spec.Dir, "/")
-		if len(parts) > 0 {
-			allowed[parts[0]] = true
+		// Normalize pattern
+		pattern := filepath.FromSlash(spec.Pattern)
+
+		// If pattern contains separators, check if it starts with an allowed dir
+		if strings.Contains(pattern, string(os.PathSeparator)) {
+			parts := strings.Split(pattern, string(os.PathSeparator))
+			if len(parts) > 1 && parts[0] != "" && !strings.Contains(parts[0], "*") {
+				allowed[parts[0]] = true
+			}
 		}
 	}
 
@@ -253,10 +315,8 @@ func globalGuidelinePaths(cfg *ToolsConfig) []string {
 	var paths []string
 
 	for _, tool := range cfg.Tools {
-		if tool.Guidelines != nil {
-			for _, path := range tool.Guidelines.Global {
-				paths = append(paths, expandHomePath(path))
-			}
+		for _, path := range tool.Global {
+			paths = append(paths, expandHomePath(path))
 		}
 	}
 

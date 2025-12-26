@@ -123,54 +123,42 @@ func mergeTool(base, override ToolConfig) ToolConfig {
 	if override.Name != "" {
 		merged.Name = override.Name
 	}
-	if override.Guidelines != nil {
-		merged.Guidelines = mergeFileSpec(base.Guidelines, override.Guidelines)
+
+	if override.Pattern != "" {
+		merged.Pattern = override.Pattern
+	}
+
+	if len(override.Global) > 0 {
+		merged.Global = append(merged.Global, override.Global...)
 	}
 
 	return merged
 }
 
-// mergeFileSpec merges two file specifications
-func mergeFileSpec(base, override *FileSpec) *FileSpec {
-	if base == nil {
-		return override
-	}
-	if override == nil {
-		return base
-	}
-
-	result := &FileSpec{
-		File:   base.File,
-		Dir:    base.Dir,
-		Global: append([]string{}, base.Global...),
-	}
-
-	if override.File != "" {
-		result.File = override.File
-	}
-	if override.Dir != "" {
-		result.Dir = override.Dir
-	}
-	if len(override.Global) > 0 {
-		result.Global = append(result.Global, override.Global...)
-	}
-
-	return result
-}
-
 func normalizeToolConfig(cfg ToolsConfig) ToolsConfig {
+
 	normalized := cfg
+
 	normalized.Tools = make(map[string]ToolConfig)
 
 	for name, tool := range cfg.Tools {
+
 		if tool.Name == "" {
+
 			tool.Name = name
+
 		}
-		if tool.Guidelines != nil && tool.Guidelines.Global == nil {
-			tool.Guidelines.Global = []string{}
+
+		if tool.Global == nil {
+
+			tool.Global = []string{}
+
 		}
+
 		normalized.Tools[name] = tool
+
 	}
 
 	return normalized
+
 }
