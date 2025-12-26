@@ -46,10 +46,18 @@ func syncSymlinks(
 			}
 
 			var opResult SyncResult
+			// Determine target filename:
+			// - For same-directory symlinks (spec.Dir == ""), use spec.File
+			// - For subdirectory symlinks (spec.Dir != ""), preserve source filename
+			targetFile := filename
 			if spec.Dir == "" {
-				opResult = createSymlink(dir, filename, spec.File, dryRun, verbose)
+				targetFile = spec.File
+			}
+
+			if spec.Dir == "" {
+				opResult = createSymlink(dir, filename, targetFile, dryRun, verbose)
 			} else {
-				opResult = createSymlinkInDir(dir, filename, spec.Dir, spec.File, dryRun, verbose)
+				opResult = createSymlinkInDir(dir, filename, spec.Dir, targetFile, dryRun, verbose)
 			}
 
 			result.Created += opResult.Created
@@ -159,15 +167,31 @@ func createSymlink(dir, source, target string, dryRun, verbose bool) SyncResult 
 // createSymlinkInDir creates a symlink in a subdirectory
 func createSymlinkInDir(dir, source, subdir, target string, dryRun, verbose bool) SyncResult {
 	result := SyncResult{}
-	subdirPath := pathJoin(dir, subdir)
+
+	// Get current working directory
+	cwd, _ := os.Getwd()
+
+	// Make paths absolute for comparison
+	absSourceDir, _ := filepath.Abs(dir)
+	absCwd, _ := filepath.Abs(cwd)
+
+	// Determine project root - if source is deeper than CWD, use CWD
+	projectRoot := absSourceDir
+	if len(absSourceDir) > len(absCwd) && filepath.HasPrefix(absSourceDir, absCwd) {
+		projectRoot = absCwd
+	}
+
+	// Create target directory relative to project root
+	subdirPath := filepath.Join(projectRoot, subdir)
 
 	if !exists(subdirPath) && !dryRun {
 		os.MkdirAll(subdirPath, 0755)
 	}
 
-	sourcePath := pathJoin(dir, source)
-	targetPath := pathJoin(subdirPath, target)
-	symTarget := pathRelative(subdirPath, sourcePath)
+	// Get absolute source path
+	sourcePath := filepath.Join(absSourceDir, source)
+	targetPath := filepath.Join(subdirPath, target)
+	symTarget, _ := filepath.Rel(subdirPath, sourcePath)
 
 	if exists(targetPath) {
 		if shouldSkipOrOverwrite(targetPath, symTarget, sourcePath, dryRun) {

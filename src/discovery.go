@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -14,7 +15,7 @@ var ignoreDir = map[string]bool{
 	".cursor":      true,
 }
 
-// discoverSources finds all source files with the given name
+// discoverSources finds all source files with the given name or pattern
 func discoverSources(sourceName string) []string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -26,13 +27,27 @@ func discoverSources(sourceName string) []string {
 		if info.IsDir() && ignoreDir[info.Name()] {
 			return "skip"
 		}
-		if !info.IsDir() && info.Name() == sourceName {
+		if !info.IsDir() && matchesPattern(info.Name(), sourceName) {
 			sources = append(sources, path)
 		}
 		return "continue"
 	})
 
 	return sources
+}
+
+// matchesPattern checks if filename matches the given pattern (supports wildcards)
+func matchesPattern(filename, pattern string) bool {
+	if filename == pattern {
+		return true
+	}
+
+	if strings.Contains(pattern, "*") {
+		matched, _ := filepath.Match(pattern, filename)
+		return matched
+	}
+
+	return false
 }
 
 func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConfig) *FileSpec) []ManagedFile {
@@ -56,15 +71,15 @@ func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConf
 		filename := info.Name()
 
 		agent := ""
-		if filename == sourceName {
-			agent = strings.ToUpper(strings.TrimSuffix(sourceName, ".md"))
+		if matchesPattern(filename, sourceName) {
+			agent = strings.ToUpper(strings.TrimSuffix(filename, ".md"))
 		} else {
 			for agentName, tool := range cfg.Tools {
 				spec := specSelector(tool)
 				if spec == nil {
 					continue
 				}
-				if filename == spec.File {
+				if matchesPattern(filename, spec.File) {
 					if spec.Dir == "" {
 						agent = strings.ToUpper(agentName)
 						break

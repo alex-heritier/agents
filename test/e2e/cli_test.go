@@ -420,9 +420,15 @@ func TestCommandSyncNestedSymlinks(t *testing.T) {
 
 	createAgentsFile(t, testDir, "Test content")
 
-	commandsPath := filepath.Join(testDir, "COMMANDS.md")
-	if err := os.WriteFile(commandsPath, []byte("# Commands"), 0644); err != nil {
-		t.Fatalf("Failed to create COMMANDS.md: %v", err)
+	// Create OpenCode command file (standard source)
+	opencodeCmdDir := filepath.Join(testDir, ".opencode", "command")
+	if err := os.MkdirAll(opencodeCmdDir, 0755); err != nil {
+		t.Fatalf("Failed to create .opencode/command directory: %v", err)
+	}
+
+	commandsPath := filepath.Join(opencodeCmdDir, "test-command.md")
+	if err := os.WriteFile(commandsPath, []byte("# Test Command"), 0644); err != nil {
+		t.Fatalf("Failed to create command file: %v", err)
 	}
 
 	_, err := runCLI(t, bin, testDir, "command", "sync", "--cursor")
@@ -430,14 +436,14 @@ func TestCommandSyncNestedSymlinks(t *testing.T) {
 		t.Errorf("command sync failed: %v", err)
 	}
 
-	cursorCommandsPath := filepath.Join(testDir, ".cursor", "commands", "commands.md")
+	cursorCommandsPath := filepath.Join(testDir, ".cursor", "commands", "test-command.md")
 	info, err := os.Lstat(cursorCommandsPath)
 	if err != nil {
-		t.Errorf(".cursor/commands/commands.md not created: %v", err)
+		t.Errorf(".cursor/commands/test-command.md not created: %v", err)
 	}
 
 	if info.Mode()&os.ModeSymlink == 0 {
-		t.Error(".cursor/commands/commands.md is not a symlink")
+		t.Error(".cursor/commands/test-command.md is not a symlink")
 	}
 
 	target, err := os.Readlink(cursorCommandsPath)
@@ -445,7 +451,7 @@ func TestCommandSyncNestedSymlinks(t *testing.T) {
 		t.Errorf("Failed to read symlink: %v", err)
 	}
 
-	expectedTarget := "../../COMMANDS.md"
+	expectedTarget := "../../.opencode/command/test-command.md"
 	if target != expectedTarget {
 		t.Errorf("symlink target is %s, expected %s", target, expectedTarget)
 	}
