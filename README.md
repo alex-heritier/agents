@@ -13,7 +13,7 @@ Managing multiple guideline files manually across nested directories is error-pr
 
 ## Solution
 
-This tool treats `AGENTS.md` as the single source of truth and automatically creates symlinks for each agent type. It also manages custom/slash command files using `COMMANDS.md` as a source file. One command syncs your entire project hierarchy.
+This tool treats `AGENTS.md` as the single source of truth and automatically creates symlinks for each agent type. One command syncs your entire project hierarchy.
 
 ## Installation
 
@@ -50,24 +50,6 @@ agents list
 agents list --verbose
 ```
 
-### List command files
-
-Discover all command files in your project:
-
-```bash
-agents list-commands
-agents list-commands --verbose
-```
-
-### List skills
-
-Discover all Claude Code skills (both global and project-level):
-
-```bash
-agents list-skills
-agents list-skills --verbose
-```
-
 ### Sync guideline files
 
 Create symlinks for specified agents from all AGENTS.md files in your project:
@@ -80,37 +62,7 @@ agents sync --claude --cursor
 agents sync --claude --cursor --dry-run
 
 # Verbose output showing each operation
-agents sync --claude --cursor --verbose
-```
-
-### Sync command files
-
-Create symlinks for specified agents from all COMMANDS.md files in your project:
-
-```bash
-# Create .claude/commands/commands.md and .cursor/commands/commands.md symlinks
-agents sync-commands --claude --cursor
-
-# Preview changes without applying
-agents sync-commands --claude --cursor --dry-run
-
-# Verbose output showing each operation
-agents sync-commands --claude --cursor --verbose
-```
-
-### Sync skills
-
-Sync skills from source `skills/` directories to `.claude/skills/`:
-
-```bash
-# Sync all skills from skills/ to .claude/skills/
-agents sync-skills
-
-# Preview changes without applying
-agents sync-skills --dry-run
-
-# Verbose output showing each operation
-agents sync-skills --verbose
+  agents sync --claude --cursor --verbose
 ```
 
 ### Remove guideline files
@@ -125,22 +77,7 @@ agents rm --claude
 agents rm --cursor --gemini --qwen
 
 # Preview deletions
-agents rm --claude --dry-run --verbose
-```
-
-### Remove command files
-
-Delete command files for specific agents:
-
-```bash
-# Delete all Claude command files
-agents rm-commands --claude
-
-# Delete multiple agents
-agents rm-commands --claude --cursor
-
-# Preview deletions
-agents rm-commands --claude --dry-run --verbose
+  agents rm --claude --dry-run --verbose
 ```
 
 ## Supported Agents
@@ -155,23 +92,12 @@ Adding new agent types is simple: edit `tools.json` and add to the `tools` map.
 
 ## Workflow
 
-### Guidelines and Commands
-
 1. Create an `AGENTS.md` file in your project root with guidelines for your AI coding assistants
 2. Create the same file in any nested directories (subdirectories with their own guidelines)
-3. Run `agents sync --claude --cursor` (or any agents you use)
+3. Run `agents rule sync --claude --cursor` (or any agents you use)
 4. All agent-specific files are now symlinks pointing to the corresponding AGENTS.md
 
-To sync custom/slash commands, add `COMMANDS.md` files and run `agents sync-commands`.
-
 When you update AGENTS.md, all agent-specific files automatically reflect the changes since they're symlinks.
-
-### Skills
-
-1. Create a `skills/` directory in your project root
-2. Add skill subdirectories with `SKILL.md` files (see [Claude Code Skills](https://code.claude.com/docs/en/skills) for format)
-3. Run `agents sync-skills` to copy skills to `.claude/skills/`
-4. Use `agents list-skills` to view all available skills (global and project-level)
 
 ## Safety Features
 
@@ -218,49 +144,13 @@ myproject/
         └── agents.md -> ../../../AGENTS.md (symlink)
 ```
 
-## Skill File Format
-
-Skills are reusable modules that extend Claude's capabilities. Each skill requires:
-
-- A directory named after the skill (e.g., `skills/my-skill/`)
-- A `SKILL.md` file with YAML frontmatter:
-
-```yaml
----
-name: my-skill-name
-description: Clear description of what this skill does and when to use it
-license: MIT
-allowed-tools: Read, Grep, Glob
----
-
-# Skill Instructions
-
-[Detailed instructions for Claude on how to use this skill]
-
-## Examples
-- Example usage 1
-- Example usage 2
-```
-
-**Required fields:**
-- `name` - Unique identifier (lowercase, hyphenated)
-- `description` - Maximum 1024 characters; describes purpose and use cases
-
-**Optional fields:**
-- `license` - License information
-- `allowed-tools` - Comma-separated list of tools Claude can use
-
-For more information, see [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills).
-
 ## Help
 
 ```bash
 agents help
-agents list --help
-agents sync --help
-agents rm --help
-agents list-skills --help
-agents sync-skills --help
+agents rule list --help
+agents rule sync --help
+agents rule rm --help
 ```
 
 ## Tech Stack
@@ -295,10 +185,6 @@ $XDG_CONFIG_HOME/agents/tools.json
 ```
 
 If `XDG_CONFIG_HOME` is not set, the tool falls back to `~/.config/agents/tools.json`.
-
-## TODO
-
-- Support global/system-wide commands files
 
 ## License
 

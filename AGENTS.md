@@ -16,15 +16,6 @@ Use `bd` for task tracking.
 - `agents rule sync [flags]` - Find all guideline source files and create symlinks
 - `agents rule rm [flags]` - Delete guideline files for specified agents
 
-**command** - Manage command files for agents
-- `agents command list` - Discover and display all command files with metadata
-- `agents command sync [flags]` - Find all command source files and create symlinks
-- `agents command rm [flags]` - Delete command files for specified agents
-
-**skill** - Manage Claude Code skills
-- `agents skill list` - Discover and display all Claude Code skills
-- `agents skill sync [flags]` - Sync skills from source directory to .claude/skills
-
 ## Flags
 - `--claude` - Create CLAUDE.md symlinks pointing to AGENTS.md
 - `--cursor` - Create .cursor/rules/agents.md symlinks (creates .cursor/rules/ dir if needed)
@@ -82,20 +73,6 @@ agents rule sync --claude --cursor --dry-run
 # Delete guideline files
 agents rule rm --claude
 agents rule rm --cursor --gemini --dry-run
-
-# List command files
-agents command list
-agents command list --claude
-
-# Sync command files
-agents command sync --claude --cursor
-agents command rm --claude
-
-# Manage skills
-agents skill list
-agents skill list --verbose
-agents skill sync
-agents skill sync --dry-run --verbose
 ```
 
 ## Agent Configuration Reference

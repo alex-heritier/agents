@@ -126,12 +126,6 @@ func mergeTool(base, override ToolConfig) ToolConfig {
 	if override.Guidelines != nil {
 		merged.Guidelines = mergeFileSpec(base.Guidelines, override.Guidelines)
 	}
-	if override.Commands != nil {
-		merged.Commands = mergeFileSpec(base.Commands, override.Commands)
-	}
-	if override.Skills != nil {
-		merged.Skills = mergeFileSpec(base.Skills, override.Skills)
-	}
 
 	return merged
 }
@@ -174,12 +168,6 @@ func normalizeToolConfig(cfg ToolsConfig) ToolsConfig {
 		}
 		if tool.Guidelines != nil && tool.Guidelines.Global == nil {
 			tool.Guidelines.Global = []string{}
-		}
-		if tool.Commands != nil && tool.Commands.Global == nil {
-			tool.Commands.Global = []string{}
-		}
-		if tool.Skills != nil && tool.Skills.Global == nil {
-			tool.Skills.Global = []string{}
 		}
 		normalized.Tools[name] = tool
 	}

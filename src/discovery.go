@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -72,6 +71,13 @@ func discoverAll(cfg *ToolsConfig, sourceName string, specSelector func(ToolConf
 
 		agent := ""
 		if matchesPattern(filename, sourceName) {
+			standardTool := getStandardTool(cfg)
+			if standardTool != nil {
+				standardSpec := specSelector(*standardTool)
+				if standardSpec != nil && standardSpec.Dir != "" && !strings.Contains(path, standardSpec.Dir) {
+					return "continue"
+				}
+			}
 			agent = strings.ToUpper(strings.TrimSuffix(filename, ".md"))
 		} else {
 			for agentName, tool := range cfg.Tools {
@@ -255,176 +261,4 @@ func globalGuidelinePaths(cfg *ToolsConfig) []string {
 	}
 
 	return paths
-}
-
-// discoverSkills discovers all skills in global and project directories
-func discoverSkills() []SkillFile {
-	skills := []SkillFile{}
-
-	// Global skills
-	globalSkillsDir := pathJoin(getHomeDir(), ".claude", "skills")
-	if dirExists(globalSkillsDir) {
-		globalSkills := discoverSkillsInDir(globalSkillsDir, "global")
-		skills = append(skills, globalSkills...)
-	}
-
-	// Project skills
-	cwd, err := os.Getwd()
-	if err == nil {
-		projectSkillsDir := pathJoin(cwd, ".claude", "skills")
-		if dirExists(projectSkillsDir) {
-			projectSkills := discoverSkillsInDir(projectSkillsDir, "project")
-			skills = append(skills, projectSkills...)
-		}
-	}
-
-	return skills
-}
-
-// discoverSourceSkills discovers source skill directories
-func discoverSourceSkills(sourceDirName string) []string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return []string{}
-	}
-
-	skillDirs := []string{}
-
-	walk(cwd, func(path string, info os.FileInfo) string {
-		if info.IsDir() && ignoreDir[info.Name()] {
-			return "skip"
-		}
-
-		// Skip .claude directory
-		if info.IsDir() && info.Name() == ".claude" {
-			return "skip"
-		}
-
-		if info.IsDir() && info.Name() == sourceDirName {
-			// Found a source skills directory
-			entries, err := os.ReadDir(path)
-			if err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() {
-						skillFile := pathJoin(path, entry.Name(), "SKILL.md")
-						if fileExists(skillFile) {
-							skillDirs = append(skillDirs, pathJoin(path, entry.Name()))
-						}
-					}
-				}
-			}
-			return "skip"
-		}
-
-		return "continue"
-	})
-
-	return skillDirs
-}
-
-// discoverSkillsInDir discovers skills in a specific directory
-func discoverSkillsInDir(dir, location string) []SkillFile {
-	skills := []SkillFile{}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return skills
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		skillName := entry.Name()
-		skillPath := pathJoin(dir, skillName)
-		skillFile := pathJoin(skillPath, "SKILL.md")
-
-		if !fileExists(skillFile) {
-			continue
-		}
-
-		metadata, parseErr := parseSkillMetadata(skillFile)
-
-		skill := SkillFile{
-			Path:      skillFile,
-			Dir:       skillPath,
-			SkillName: skillName,
-			Location:  location,
-		}
-
-		if parseErr != nil {
-			skill.Error = parseErr.Error()
-		} else {
-			skill.Metadata = metadata
-		}
-
-		skills = append(skills, skill)
-	}
-
-	return skills
-}
-
-// parseSkillMetadata parses YAML frontmatter from a skill file
-func parseSkillMetadata(skillFile string) (*SkillMetadata, error) {
-	content, err := os.ReadFile(skillFile)
-	if err != nil {
-		return nil, err
-	}
-
-	// Match frontmatter
-	frontmatterRegex := regexp.MustCompile(`(?s)^---\s*\n(.*?)\n---`)
-	matches := frontmatterRegex.FindSubmatch(content)
-	if matches == nil {
-		return nil, &SkillError{"No frontmatter found"}
-	}
-
-	frontmatter := string(matches[1])
-	metadata := &SkillMetadata{}
-
-	lines := strings.Split(frontmatter, "\n")
-	for _, line := range lines {
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case "name":
-			metadata.Name = value
-		case "description":
-			metadata.Description = value
-		case "license":
-			metadata.License = value
-		case "allowedTools":
-			metadata.AllowedTools = value
-		}
-	}
-
-	if metadata.Name == "" || metadata.Description == "" {
-		return nil, &SkillError{"Missing required fields (name, description)"}
-	}
-
-	return metadata, nil
-}
-
-// dirExists checks if a directory exists
-func dirExists(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-// SkillError is a custom error type for skill parsing
-type SkillError struct {
-	Message string
-}
-
-func (e *SkillError) Error() string {
-	return e.Message
 }

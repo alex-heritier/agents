@@ -6,16 +6,6 @@
         "file": "CLAUDE.md",
         "dir": "",
         "global": ["~/.claude/CLAUDE.md", "~/.claude/rules/"]
-      },
-      "commands": {
-        "file": "commands.md",
-        "dir": ".claude/commands",
-        "global": ["~/.claude/commands/*.md"]
-      },
-      "skills": {
-        "file": "SKILL.md",
-        "dir": ".claude/skills",
-        "global": ["~/.claude/skills"]
       }
     },
     "cursor": {
@@ -23,11 +13,6 @@
         "file": "agents.md",
         "dir": ".cursor/rules",
         "global": []
-      },
-      "commands": {
-        "file": "commands.md",
-        "dir": ".cursor/commands",
-        "global": ["~/.cursor/commands/*.md"]
       }
     },
     "codex": {
@@ -35,11 +20,6 @@
         "file": "AGENTS.md",
         "dir": "",
         "global": ["~/.codex/AGENTS.md"]
-      },
-      "skills": {
-        "file": "SKILL.md",
-        "dir": ".codex/skills",
-        "global": ["~/.codex/skills"]
       }
     },
     "copilot": {
@@ -54,11 +34,6 @@
         "file": "GEMINI.md",
         "dir": "",
         "global": ["~/.gemini/GEMINI.md"]
-      },
-      "commands": {
-        "file": "*.toml",
-        "dir": ".gemini/commands",
-        "global": ["~/.gemini/commands/*.toml"]
       }
     },
     "opencode": {
@@ -66,16 +41,6 @@
         "file": "AGENTS.md",
         "dir": "",
         "global": ["~/.opencode/AGENTS.md", "~/.config/opencode/AGENTS.md"]
-      },
-      "commands": {
-        "file": "*.md",
-        "dir": ".opencode/command",
-        "global": ["~/.opencode/command/*.md", "~/.config/opencode/command/*.md"]
-      },
-      "skills": {
-        "file": "SKILL.md",
-        "dir": ".opencode/skill",
-        "global": ["~/.opencode/skill", "~/.config/opencode/skill"]
       }
     },
     "qwen": {
@@ -90,11 +55,6 @@
         "file": "AGENTS.md",
         "dir": "",
         "global": ["~/.config/amp/AGENTS.md", "~/.config/AGENTS.md"]
-      },
-      "commands": {
-        "file": "*",
-        "dir": ".agents/commands",
-        "global": ["~/.config/amp/commands/*"]
       }
     }
   }
