@@ -1,10 +1,14 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 )
+
+//go:embed tools.json
+var defaultToolsConfig []byte
 
 var cachedConfig *ToolsConfig
 
@@ -13,14 +17,20 @@ func getToolConfig() (*ToolsConfig, error) {
 		return cachedConfig, nil
 	}
 
-	configPath, err := findConfigPath()
-	if err != nil {
-		return nil, err
-	}
+	configPath := findConfigPath()
+	var baseConfig ToolsConfig
+	var err error
 
-	baseConfig, err := loadConfigFile(configPath)
-	if err != nil {
-		return nil, err
+	if configPath != "" {
+		baseConfig, err = loadConfigFile(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config from %s: %w", configPath, err)
+		}
+	} else {
+		baseConfig, err = loadDefaultConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load default embedded config: %w", err)
+		}
 	}
 
 	userConfigPath := userConfigFilePath()
@@ -41,15 +51,15 @@ func clearConfigCache() {
 	cachedConfig = nil
 }
 
-func findConfigPath() (string, error) {
+func findConfigPath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return ""
 	}
 
 	localPath := pathJoin(cwd, "tools.json")
 	if fileExists(localPath) {
-		return localPath, nil
+		return localPath
 	}
 
 	exePath, err := os.Executable()
@@ -57,11 +67,11 @@ func findConfigPath() (string, error) {
 		exeDir := pathDirname(exePath)
 		repoPath := pathJoin(exeDir, "tools.json")
 		if fileExists(repoPath) {
-			return repoPath, nil
+			return repoPath
 		}
 	}
 
-	return "", fmt.Errorf("tools.json not found")
+	return ""
 }
 
 func loadConfigFile(path string) (ToolsConfig, error) {
@@ -76,6 +86,15 @@ func loadConfigFile(path string) (ToolsConfig, error) {
 		return ToolsConfig{}, err
 	}
 
+	return config, nil
+}
+
+func loadDefaultConfig() (ToolsConfig, error) {
+	var config ToolsConfig
+	err := json.Unmarshal(defaultToolsConfig, &config)
+	if err != nil {
+		return ToolsConfig{}, err
+	}
 	return config, nil
 }
 
