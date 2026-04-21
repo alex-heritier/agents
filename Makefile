@@ -1,16 +1,40 @@
-.PHONY: build clean run test format
+.PHONY: install dev run test lint format typecheck check clean build tool-install tool-upgrade tool-uninstall
 
-build:
-	go build -o agents ./src
+install:
+	uv sync
 
-clean:
-	rm -f agents
+dev:
+	uv sync --all-groups
 
-run: build
-	./agents
+run:
+	uv run agents
 
 test:
-	go test -v ./src/... ./test/e2e/...
+	uv run pytest
+
+lint:
+	uv run ruff check src tests
 
 format:
-	go fmt ./src/... ./test/...
+	uv run ruff format src tests
+	uv run ruff check --fix src tests
+
+typecheck:
+	uv run mypy src
+
+check: lint typecheck test
+
+clean:
+	rm -rf build dist *.egg-info .pytest_cache .mypy_cache .ruff_cache
+
+build:
+	uv build
+
+tool-install:
+	uv tool install --force --from . agents-cli
+
+tool-upgrade:
+	uv tool upgrade agents-cli
+
+tool-uninstall:
+	uv tool uninstall agents-cli

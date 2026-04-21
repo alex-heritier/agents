@@ -1,14 +1,34 @@
-agents
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
 dist/
-bun.lockb
-*.o
-*.a
-*.so
+
+# uv
+uv.lock
+
+# Editor / OS
 .DS_Store
-.cursor
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+
+# Legacy Go artifacts (kept for safety if re-cloned)
+agents
+
+# Opencode local
+node_modules/
+.cursor
+
+# Tool-local configs created during testing
+.test-workspace/

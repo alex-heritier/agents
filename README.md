@@ -1,190 +1,194 @@
-# Agent Guidelines Manager CLI
+# agents-cli
 
-A command-line tool to sync AI agent guideline files across project hierarchies. Maintain a single source of truth (AGENTS.md) and automatically create symlinks for different AI agents (Claude, Cursor, Copilot, Gemini, Qwen, and more).
+> **One set of AI coding guidelines, skills, commands, and subagents — synced
+> to every harness you use.**
 
-## Problem
+`agents-cli` is a tiny, focused CLI that lets you maintain **one** source of
+truth for your AI coding setup (in, say, `opencode`) and automatically
+propagate it — via symlinks or copies — to **every other harness** you
+occasionally reach for: Claude Code, Gemini CLI, Droid (Factory), Kilo Code,
+Codex, Cursor, Amp Code, Qwen Code, GitHub Copilot.
 
-Different AI coding assistants look for guidelines in different ways:
-- Some look for `CLAUDE.md` in the project root
-- Cursor looks for `.cursor/rules/*.md` files
-- Others have their own conventions
+It works at **two scopes**:
 
-Managing multiple guideline files manually across nested directories is error-prone and duplicates effort.
+- **Project** (repo root, detected from `.git`)
+- **Global** (your `$HOME` — `~/.config/opencode`, `~/.claude`, `~/.gemini`, …)
 
-## Solution
+It covers **four resource types**:
 
-This tool treats `AGENTS.md` as the single source of truth and automatically creates symlinks for each agent type. One command syncs your entire project hierarchy.
+| Type         | What it is                                           |
+|--------------|------------------------------------------------------|
+| `guideline`  | `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` / `RULE.md`  |
+| `skill`      | `<name>/SKILL.md` folders with a `name` + `description` |
+| `command`    | Custom slash commands (`/commit`, `/review`)         |
+| `subagent`   | Specialized agents / droids (`reviewer`, `debugger`) |
 
-## Installation
+---
 
-### Build from source
+## Install
 
-```bash
-git clone https://github.com/alex-heritier/agents.git
-cd agents
-go build -o agents
-```
-
-This creates an `agents` binary.
-
-### Add to PATH
-
-```bash
-# Option 1: Install to /usr/local/bin
-sudo cp agents /usr/local/bin/agents
-
-# Option 2: Create a symlink
-sudo ln -s "$PWD/agents" /usr/local/bin/agents
-```
-
-Then use `agents` from anywhere.
-
-## Usage
-
-### List guideline files
-
-Discover all guideline files in your project:
+Requires **Python ≥ 3.10** and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-agents list
-agents list --verbose
+git clone https://github.com/alex-heritier/agents-cli
+cd agents-cli
+uv sync
 ```
 
-### Sync guideline files
-
-Create symlinks for specified agents from all AGENTS.md files in your project:
+Then either run it via uv, or install it as a shell command:
 
 ```bash
-# Create CLAUDE.md and .cursor/rules/agents.md symlinks
-agents sync --claude --cursor
-
-# Preview changes without applying
-agents sync --claude --cursor --dry-run
-
-# Verbose output showing each operation
-  agents sync --claude --cursor --verbose
+uv run agents --help            # via uv
+uv tool install --editable .    # → `agents` on your $PATH
 ```
 
-### Remove guideline files
+---
 
-Delete guideline files for specific agents:
+## Quickstart
 
 ```bash
-# Delete all CLAUDE.md files
-agents rm --claude
+cd my-project/
 
-# Delete multiple agents
-agents rm --cursor --gemini --qwen
-
-# Preview deletions
-  agents rm --claude --dry-run --verbose
+agents init                     # write .agents.toml + seed AGENTS.md
+agents status                   # see what each harness has
+agents sync --dry-run           # preview propagation
+agents sync                     # do it
 ```
 
-## Supported Agents
+That's it. You now have one `AGENTS.md`, linked as `CLAUDE.md`, `GEMINI.md`,
+and so on. Edit `AGENTS.md` and every harness sees the change instantly.
 
-- **claude** - Creates `CLAUDE.md`
-- **cursor** - Creates `.cursor/rules/agents.md`
-- **copilot** - Creates `COPILOT.md`
-- **gemini** - Creates `GEMINI.md`
-- **qwen** - Creates `QWEN.md`
+---
 
-Adding new agent types is simple: edit `tools.json` and add to the `tools` map.
+## Commands
 
-## Workflow
+### Top-level
 
-1. Create an `AGENTS.md` file in your project root with guidelines for your AI coding assistants
-2. Create the same file in any nested directories (subdirectories with their own guidelines)
-3. Run `agents rule sync --claude --cursor` (or any agents you use)
-4. All agent-specific files are now symlinks pointing to the corresponding AGENTS.md
+| Command               | What it does                                         |
+|-----------------------|------------------------------------------------------|
+| `agents init`         | Create `.agents.toml` and (optionally) seed `AGENTS.md` |
+| `agents doctor`       | Diagnose your setup, list discovered resources       |
+| `agents status`       | Compact grid: what's synced where                    |
+| `agents sync`         | Propagate **everything** from source → targets       |
 
-When you update AGENTS.md, all agent-specific files automatically reflect the changes since they're symlinks.
+### Per resource
 
-## Safety Features
-
-- **Conflict detection**: If a file already exists and differs from AGENTS.md, the tool prompts you before overwriting
-- **Dry-run mode**: Preview all changes with `--dry-run` before applying
-- **Verbose logging**: Use `--verbose` to see detailed operations
-
-## Examples
-
-### Project structure before
-
-```
-myproject/
-├── AGENTS.md
-├── src/
-│   └── AGENTS.md
-└── docs/
-    └── AGENTS.md
-```
-
-### Create guidelines for Claude and Cursor
+Every resource type has the same verbs — `list`, `show`, `new`, `edit`, `rm`,
+`sync`:
 
 ```bash
-agents sync --claude --cursor
+agents guideline list                   # all guideline files in the project
+agents guideline sync --to claude       # sync just guidelines to claude
+
+agents skill list                       # all skills across harnesses
+agents skill new my-skill               # scaffold ~/.opencode/skills/my-skill/
+agents skill show my-skill
+agents skill edit my-skill              # opens $EDITOR
+agents skill sync --to claude,gemini
+agents skill rm my-skill
+
+agents command new commit
+agents subagent new reviewer
 ```
 
-### Project structure after
+### Useful flags
 
-```
-myproject/
-├── AGENTS.md
-├── CLAUDE.md -> AGENTS.md (symlink)
-├── .cursor/rules/
-│   └── agents.md -> ../../AGENTS.md (symlink)
-├── src/
-│   ├── AGENTS.md
-│   ├── CLAUDE.md -> AGENTS.md (symlink)
-│   └── .cursor/rules/
-│       └── agents.md -> ../../../AGENTS.md (symlink)
-└── docs/
-    ├── AGENTS.md
-    ├── CLAUDE.md -> AGENTS.md (symlink)
-    └── .cursor/rules/
-        └── agents.md -> ../../../AGENTS.md (symlink)
+| Flag                   | Meaning                                               |
+|------------------------|-------------------------------------------------------|
+| `--project` / `-p`     | Operate on project scope only                         |
+| `--global` / `-g`      | Operate on global scope only                          |
+| `--from <harness>`     | Override source harness                               |
+| `--to <h1,h2>`         | Override target harnesses                             |
+| `--link` / `--copy`    | Force symlink or copy (overrides config)              |
+| `--only skill,command` | Restrict `agents sync` to specific resource types     |
+| `--dry-run` / `-n`     | Preview — write nothing                               |
+| `--force` / `-f`       | Don't prompt before overwriting                       |
+
+---
+
+## Configuration
+
+`agents-cli` reads `.agents.toml` at the project root (and
+`~/.config/agents-cli/config.toml` globally). Any field can be overridden
+by the per-command CLI flags.
+
+```toml
+# .agents.toml
+source = "opencode"                       # your primary harness
+targets = ["claude", "gemini", "droid"]   # where to sync to
+sync_method = "symlink"                   # "symlink" or "copy"
+
+# Optional per-resource overrides:
+[methods]
+skill    = "symlink"
+command  = "copy"
+subagent = "copy"
 ```
 
-## Help
+---
+
+## Supported harnesses
+
+Every row is a real, verified path convention as of April 2026.
+
+| Harness         | id          | Guideline               | Skills                               | Commands                              | Subagents                              |
+|-----------------|-------------|-------------------------|--------------------------------------|---------------------------------------|----------------------------------------|
+| OpenCode        | `opencode`  | `AGENTS.md`             | `.opencode/skills/<n>/SKILL.md`      | `.opencode/commands/<n>.md`           | `.opencode/agents/<n>.md`              |
+| Claude Code     | `claude`    | `CLAUDE.md`             | `.claude/skills/<n>/SKILL.md`        | `.claude/commands/<n>.md`             | `.claude/agents/<n>.md`                |
+| Gemini CLI      | `gemini`    | `GEMINI.md`             | `.gemini/skills/<n>/SKILL.md`        | `.gemini/commands/<n>.toml` (TOML!)   | `.gemini/agents/<n>.md`                |
+| Droid (Factory) | `droid`     | `AGENTS.md`             | `.factory/skills/<n>/SKILL.md`       | `.factory/commands/<n>.md`            | `.factory/droids/<n>.md`               |
+| Kilo Code       | `kilo`      | `AGENTS.md` / `CLAUDE.md` | `.kilo/skills/<n>/SKILL.md`        | `.kilo/commands/<n>.md`               | `.kilo/agents/<n>.md`                  |
+| Codex           | `codex`     | `AGENTS.md`             | `.codex/skills/<n>/SKILL.md`         | —                                     | —                                      |
+| Cursor          | `cursor`    | `AGENTS.md`             | —                                    | `.cursor/commands/<n>.md`             | —                                      |
+| Amp Code        | `amp`       | `AGENTS.md`             | `.agents/skills/<n>/SKILL.md`        | `.agents/commands/<n>.md`             | —                                      |
+| Qwen Code       | `qwen`      | `QWEN.md`               | —                                    | `.qwen/commands/<n>.toml`             | —                                      |
+| GitHub Copilot  | `copilot`   | `.github/copilot-instructions.md` | —                          | —                                     | —                                      |
+
+`agents-cli` also knows each harness's **alias paths** (e.g. OpenCode reading
+`CLAUDE.md`, Codex reading `AGENTS.md` from multiple locations, skills honoring
+the `.agents/skills/` cross-tool standard, etc.), so discovery finds files no
+matter which convention they were created under.
+
+---
+
+## How sync works
+
+1. **Detect source**: Whichever harness owns your files (`opencode` by default).
+2. **Enumerate** every resource that exists under the source.
+3. **For each target harness**, compute the destination path from that target's
+   conventions (not the source's).
+4. **Symlink or copy** — your choice. Symlinks use the shortest relative path
+   possible, so your repo stays portable.
+5. **Skip intelligently**: same path, identical content, format mismatch
+   (e.g. markdown source → TOML target for Gemini commands), or missing source.
+
+Every operation is logged; `--dry-run` shows exactly what would happen.
+
+---
+
+## Safety
+
+- `--dry-run` is always available.
+- Interactive confirmation before overwriting anything that isn't already a
+  symlink to the correct source. Use `--force` to skip.
+- Symlinks pointing at the correct target are detected and skipped silently.
+
+---
+
+## Development
 
 ```bash
-agents help
-agents rule list --help
-agents rule sync --help
-agents rule rm --help
+uv sync                     # install project + dev deps
+uv run agents --help        # run from checkout
+uv run pytest               # tests
+uv run ruff check .         # lint
+uv run ruff format .        # format
+uv run mypy src             # types
 ```
 
-## Tech Stack
+See `AGENTS.md` for contributor-level guidelines.
 
-- **Language:** Go
-- **Dependencies:** None (standard library only)
-- **Platforms:** macOS, Linux, Windows
-
-## Contributing
-
-Contributions welcome! To add a new agent type:
-
-1. Edit `tools.json` and add to the `tools` map
-2. Run `go build` (and tests if added)
-3. Submit a PR
-
-## Agent Configuration Reference
-
-For comprehensive information about how different AI agents use guideline files, see [agents-conventions.md](agents-conventions.md). This document covers:
-
-- Configuration options for Claude, Cursor, Copilot, Gemini, Qwen, and other agents
-- Hierarchical placement and precedence rules
-- Auto-generation and external file referencing
-- Best practices for cross-agent compatibility
-
-## Tool Configuration
-
-Tool definitions live in `tools.json` (file names, directories, and source file names). You can extend or override these definitions by creating an optional file at:
-
-```
-$XDG_CONFIG_HOME/agents/tools.json
-```
-
-If `XDG_CONFIG_HOME` is not set, the tool falls back to `~/.config/agents/tools.json`.
+---
 
 ## License
 

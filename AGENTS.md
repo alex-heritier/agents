@@ -1,106 +1,120 @@
-# Agent Guidelines Manager CLI - Development Guide
+# agents-cli — contributor guide
 
-## Purpose
-Sync AGENTS.md files (single source of truth) across project hierarchy by creating symlinks to agent-specific guideline files.
+> Source of truth for **how this project is built**. (User-facing docs live in
+> `README.md`.)
 
-## Core Commands
-The CLI follows a module-based command structure: `agents <module> <command> [flags]`
+## What this is
 
-## Task Tracking
-Use `bd` for task tracking.
+A Python 3.10+ CLI, built on [Typer][typer] + [Rich][rich], packaged with
+[`uv`][uv]. Its only job: maintain one set of AI-agent configuration files
+(guidelines, skills, slash commands, subagents) and sync them — via symlink
+or copy — to every harness the user might touch (OpenCode, Claude Code,
+Gemini CLI, Droid, Kilo, Codex, Cursor, Amp, Qwen, Copilot).
 
-### Modules
+## Repository layout
 
-**rule** - Manage guideline files (AGENTS.md, CLAUDE.md, .cursor/rules/*, etc.)
-- `agents rule list` - Discover and display all guideline files with metadata
-- `agents rule sync [flags]` - Find all guideline source files and create symlinks
-- `agents rule rm [flags]` - Delete guideline files for specified agents
-
-## Flags
-- `--claude` - Create CLAUDE.md symlinks pointing to AGENTS.md
-- `--cursor` - Create .cursor/rules/agents.md symlinks (creates .cursor/rules/ dir if needed)
-- `--dry-run` - Show what would be created without making changes
-- `--verbose` - Show detailed output of all operations
-- `--global`, `-g` - Show only user/system-wide agent guideline files (for `rule list`)
-- `--<agent>` - Filter by specific agent files (e.g., --claude, --cursor)
-
-## Discovery Rules
-1. Search recursively from current directory downward
-2. Find all AGENTS.md files in every directory
-3. Skip directories in ignore list: `node_modules`, `.git`, `dist`, `build`, `.cursor`
-4. For each AGENTS.md found, create specified symlinks in the same directory
-
-## Symlink Behavior
-- If target symlink exists, skip or update (ask user on conflict)
-- Symlinks point to AGENTS.md in same directory (relative path)
-- Create parent directories as needed (e.g., `.cursor/rules/`)
-- All paths are relative to respect moving the project
-
-## Output Format
-**List command:**
-- Table with columns: Directory | Agent | File | Type (file/symlink)
-- Show all discovered guideline files recursively
-
-**Sync command:**
-- Show summary: X AGENTS.md files found, Y symlinks created, Z skipped
-- With `--verbose`: list each operation (created/skipped and path)
-
-## Development Guidelines
-- Minimal dependencies (prefer stdlib where possible)
-- Graceful degradation (CLI works even if some files are missing/malformed)
-- Clear error messages (always show which file caused an issue)
-- No auto-modifications without explicit `--force` flag
-
-## Quick Start (Development)
-1. Modify code files (main.go, discovery.go, symlink.go, output.go, config.go, args.go, paths.go, types.go)
-2. Run `go build -o agents` to compile
-3. Test with `./agents <module> <command>`
-4. Add new agent types in tools.json configuration file
-
-## Examples
-```bash
-# List guideline files
-agents rule list
-agents rule list --verbose
-agents rule list --claude
-agents rule list --gemini --global
-agents rule list --claude --cursor --verbose
-
-# Sync guideline files
-agents rule sync --claude --cursor
-agents rule sync --claude --cursor --dry-run
-
-# Delete guideline files
-agents rule rm --claude
-agents rule rm --cursor --gemini --dry-run
+```
+src/agents_cli/
+  app.py                # Typer app wiring + top-level commands
+  harnesses.py          # Knowledge base: paths for every harness
+  paths.py              # Scope detection (project/global), display_path
+  fs.py                 # Safe filesystem ops (symlink/copy/rm/write) + OperationLog
+  discovery.py          # "What resources exist on disk?"
+  sync.py               # Propagation engine
+  templates.py          # Default content for `new` commands
+  ui.py                 # Rich-based output helpers
+  config.py             # .agents.toml loader + merger
+  commands/
+    _shared.py          # Builds the list/show/new/edit/rm/sync verbs per type
+    guideline_group.py
+    skill_group.py
+    command_group.py
+    subagent_group.py
+    init_cmd.py
+    doctor_cmd.py
+    status_cmd.py
+    sync_cmd.py
 ```
 
-## Agent Configuration Reference
+The one file you'll edit most often for new harnesses: `harnesses.py`.
 
-For detailed information about how different AI agents use guideline files, see [agents-conventions.md](agents-conventions.md). This comprehensive guide covers configuration options, hierarchical placement, and best practices for Claude, Cursor, Copilot, Gemini, Qwen, and other agents.
+## Dev workflow
 
-## Landing the Plane (Session Completion)
+```bash
+uv sync                       # install project + dev deps
+uv run agents --help          # run the CLI from source
+uv run agents doctor          # sanity-check against current repo
+uv run pytest                 # tests
+uv run ruff check .           # lint
+uv run ruff format .          # format
+uv run mypy src               # types
+make check                    # everything above in one go
+```
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+We target **Python 3.10+**; don't use 3.11/3.12-only APIs (e.g.
+`Path.is_dir(follow_symlinks=…)`).
 
-**MANDATORY WORKFLOW:**
+## Design principles
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+1. **Be conservative with the filesystem.** Every write goes through
+   `fs.py`, which supports `dry_run`, `force`, interactive confirmation,
+   identical-content skipping, and full operation logging.
+2. **Aliases are first-class.** Every harness has primary paths and
+   alias paths. Discovery must find both. Writes always use the primary.
+3. **Symlinks are relative.** Portable repos > absolute paths.
+4. **Harness knowledge = data, not code.** `harnesses.py` is declarative;
+   adding a harness should not require new logic anywhere else.
+5. **Delightful CLI.** Rich banners, tables, sections, clear status marks.
+   Use `ui.py`, not bare prints.
+6. **Guidelines are nested.** Project walk handles subdir `AGENTS.md`.
+   All other resource types are flat per scope.
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+## Adding a new harness
+
+1. Open `src/agents_cli/harnesses.py`.
+2. Define a `Harness(id=…, guideline=…, skill=…, command=…, subagent=…)`.
+3. Add it to `ALL_HARNESSES`.
+4. Run `agents doctor` — it should appear in the discovery grid.
+5. Add a row to the README table.
+6. If it has unusual rules (format mismatch, special aliases), verify
+   `sync.py`'s `_format_mismatch` does the right thing.
+
+## Adding a new resource type
+
+Rare. If you do:
+
+1. Add a value to `ResourceType` in `harnesses.py`.
+2. Extend each `Harness` to specify (or explicitly omit) its `ResourceSpec`.
+3. Teach `discovery._discover_file_resources` / `sync.run_sync` about it.
+4. Add a command group under `commands/`, mirroring `skill_group.py`.
+5. Register it in `app.py`.
+
+## Testing
+
+- Manual smoke: `uv run agents doctor`, then `agents sync --dry-run` in a
+  scratch repo (see the README Quickstart).
+- Unit tests live in `tests/`. Tests should be filesystem-hermetic: use
+  `tmp_path` and never touch `$HOME`.
+
+## Style
+
+- `ruff` enforces import order, modern Python idioms, pytest style.
+- Prefer `dataclass(frozen=True)` for records.
+- Keep modules small and purpose-focused.
+- Public functions get docstrings; private helpers don't need them unless
+  non-obvious.
+- No redundant `# this does X` comments. Comments explain *why*.
+
+## Commit / PR hygiene
+
+- One logical change per commit; keep them atomic.
+- Don't commit binary artifacts, virtualenvs, or `.DS_Store`.
+- `uv.lock` is checked in; update it with `uv lock` whenever deps change.
+
+## License
+
+MIT — same as the project.
+
+[typer]: https://typer.tiangolo.com/
+[rich]: https://rich.readthedocs.io/
+[uv]: https://docs.astral.sh/uv/
