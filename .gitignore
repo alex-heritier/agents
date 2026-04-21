@@ -32,3 +32,5 @@ node_modules/
 
 # Tool-local configs created during testing
 .test-workspace/
+
+.opencode/
