@@ -82,10 +82,15 @@ agents guideline sync --to claude       # sync just guidelines to claude
 
 agents skill list                       # all skills across harnesses
 agents skill new my-skill               # scaffold ~/.opencode/skills/my-skill/
-agents skill show my-skill
-agents skill edit my-skill              # opens $EDITOR
+agents skill show my-skill              # exact lookup
+agents skill show                       # interactive picker (omit NAME)
+agents skill edit my-skill              # opens $EDITOR on exact match
+agents skill edit                       # interactive picker, then opens $EDITOR
 agents skill sync --to claude,gemini
 agents skill rm my-skill
+
+agents rule show                        # browse all guideline files interactively
+agents rule edit                        # pick a guideline and open it in $EDITOR
 
 agents command new commit
 agents subagent new reviewer

@@ -91,6 +91,49 @@ def confirm(prompt: str, *, default: bool = False, assume_yes: bool = False) -> 
     return answer in {"y", "yes"}
 
 
+def prompt_choice(n: int, prompt: str = "Selection") -> int | None:
+    """Prompt for a 1-based integer choice from ``n`` items.
+
+    Returns the 0-based index of the chosen item, or ``None`` if the user
+    cancels (empty input, ``q``/``quit``, or EOF).  Loops forever on invalid
+    input so a TTY user can correct a typo without re-running the command.
+    """
+    while True:
+        try:
+            raw = input(f"{prompt} [1-{n}, q to cancel]: ").strip()
+        except EOFError:
+            return None
+        if not raw or raw.lower() in {"q", "quit"}:
+            return None
+        try:
+            idx = int(raw)
+        except ValueError:
+            err_console.print(
+                Text(f"Invalid input — enter a number 1-{n} or q to cancel.", style="warn")
+            )
+            continue
+        if 1 <= idx <= n:
+            return idx - 1
+        err_console.print(Text(f"Out of range — enter a number 1-{n}.", style="warn"))
+
+
+def view_text(title: str, subtitle: str | None, content: str) -> None:
+    """Display a read-only view of ``content`` with a banner header.
+
+    Uses a Rich pager when stdout is a TTY so long files scroll nicely;
+    falls back to plain print otherwise (e.g. piped output or tests).
+    """
+    import sys
+
+    if sys.stdout.isatty():
+        with console.pager():
+            banner(title, subtitle)
+            console.print(content)
+    else:
+        banner(title, subtitle)
+        console.print(content)
+
+
 def format_summary(
     *,
     created: int,

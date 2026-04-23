@@ -7,6 +7,7 @@ build a ``ResourceApp`` factory here.
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -105,6 +106,109 @@ def _open_in_editor(path: Path) -> int:
         return 1
 
 
+# ---------------------------------------------------------------------------
+# Helpers for interactive show/edit
+# ---------------------------------------------------------------------------
+
+
+def _resolve_scope_for_show(ctx: ScopeContext, project_only: bool, global_only: bool) -> "Scope":
+    """Scope resolution for ``show``: project when in a project, global otherwise."""
+    return Scope.PROJECT if (project_only or (not global_only and ctx.in_project)) else Scope.GLOBAL
+
+
+def _resolve_scope_for_edit(ctx: ScopeContext, project_only: bool, global_only: bool) -> "Scope":
+    """Scope resolution for ``edit``: global when --global, else project with fallback."""
+    scope = Scope.GLOBAL if global_only else Scope.PROJECT
+    if scope is Scope.PROJECT and not ctx.in_project:
+        scope = Scope.GLOBAL
+    return scope
+
+
+def _discover_candidates(
+    *,
+    rtype: ResourceType,
+    ctx: ScopeContext,
+    cfg: "cfgmod.AgentsConfig",
+    scope: "Scope",
+    harness_raw: str | None,
+) -> list[DiscoveredResource]:
+    """Discover resources filtered to the effective harness set.
+
+    When ``harness_raw`` is ``None`` we mirror the exact-mode default: only
+    the configured source harness, keeping interactive and exact modes aligned.
+    """
+    if harness_raw:
+        harness_ids = _parse_harness_list(harness_raw)
+        harness_filter: tuple[Harness, ...] | None = tuple(get(h) for h in harness_ids)
+    else:
+        # Same harness as exact mode would pick.
+        default_h = _resolve_harness_for_write(None, cfg, rtype)
+        harness_filter = (default_h,)
+
+    results = discover(rtype, scope, ctx, harnesses=harness_filter)
+    results.sort(key=lambda r: (r.scope.value, r.harness_id, r.name, str(r.path)))
+    return results
+
+
+def _pick_resource_interactive(
+    *,
+    resources: list[DiscoveredResource],
+    ctx: ScopeContext,
+    title: str,
+) -> DiscoveredResource | None:
+    """Render a numbered picker and return the chosen resource, or ``None`` on cancel.
+
+    When there is exactly one candidate the prompt is skipped and that
+    resource is returned immediately.
+    """
+    if len(resources) == 1:
+        return resources[0]
+
+    rows: list[tuple[str, ...]] = []
+    for i, res in enumerate(resources, start=1):
+        mark = ""
+        if res.is_symlink:
+            mark = "↪ "
+        elif res.is_alias_location:
+            mark = "~ "
+        scope_label = "project" if res.scope is Scope.PROJECT else "global"
+        rows.append(
+            (
+                str(i),
+                res.harness_id,
+                scope_label,
+                mark + res.display_name(),
+                display_path(res.path, ctx),
+                _format_size(res.size),
+            )
+        )
+
+    ui.banner(title)
+    ui.table(
+        None,
+        columns=("#", "Harness", "Scope", "Name", "Path", "Size"),
+        rows=rows,
+    )
+
+    idx = ui.prompt_choice(len(resources))
+    if idx is None:
+        return None
+    return resources[idx]
+
+
+def _show_resource(res: DiscoveredResource, ctx: ScopeContext) -> None:
+    """Read ``res.entry`` and display it through ``ui.view_text``."""
+    h_name = get(res.harness_id).display_name
+    title = f"{h_name} · {res.rtype.value} · {res.display_name()}"
+    subtitle = display_path(res.entry, ctx)
+    try:
+        content = res.entry.read_text()
+    except OSError as e:
+        ui.error(f"Read failed: {e}")
+        raise typer.Exit(1) from None
+    ui.view_text(title, subtitle, content)
+
+
 def build_group(
     *,
     name: str,
@@ -161,11 +265,16 @@ def build_group(
             rows=rows,
         )
 
-    @app.command("show", help=f"Print a {rtype.value}'s content.")
+    @app.command("show", help=f"Show a {rtype.value}. If NAME is omitted, pick interactively.")
     def show_cmd(
         name_arg: Annotated[
-            str, typer.Argument(metavar="NAME", help=f"{rtype.value} name or filename.")
-        ],
+            str | None,
+            typer.Argument(
+                metavar="NAME",
+                help=f"{rtype.value} name or filename.",
+                show_default=False,
+            ),
+        ] = None,
         harness: Annotated[
             str | None,
             typer.Option("--harness", "-H", help="Which harness's copy to show."),
@@ -175,24 +284,37 @@ def build_group(
     ) -> None:
         ctx = detect()
         cfg = cfgmod.load(ctx.project_root)
-        scope = (
-            Scope.PROJECT
-            if (project_only or (not global_only and ctx.in_project))
-            else Scope.GLOBAL
-        )
-        h = _resolve_harness_for_write(harness, cfg, rtype)
-        res = find(h, rtype, name_arg, scope, ctx)
-        if res is None:
-            ui.error(
-                f"No {rtype.value} named {name_arg!r} in {h.display_name} at {scope.value} scope."
+        scope = _resolve_scope_for_show(ctx, project_only, global_only)
+
+        if name_arg is not None:
+            # Exact mode — unchanged behavior.
+            h = _resolve_harness_for_write(harness, cfg, rtype)
+            res = find(h, rtype, name_arg, scope, ctx)
+            if res is None:
+                ui.error(
+                    f"No {rtype.value} named {name_arg!r} in {h.display_name} at {scope.value} scope."
+                )
+                raise typer.Exit(1)
+            _show_resource(res, ctx)
+        else:
+            # Interactive mode.
+            if not sys.stdin.isatty():
+                ui.error("Interactive selection requires a TTY. Pass NAME explicitly.")
+                raise typer.Exit(2)
+            candidates = _discover_candidates(
+                rtype=rtype, ctx=ctx, cfg=cfg, scope=scope, harness_raw=harness
             )
-            raise typer.Exit(1)
-        ui.banner(f"{h.display_name} · {rtype.value} · {name_arg}", display_path(res.entry, ctx))
-        try:
-            ui.console.print(res.entry.read_text())
-        except OSError as e:
-            ui.error(f"Read failed: {e}")
-            raise typer.Exit(1) from None
+            if not candidates:
+                ui.error(f"No {rtype.value}s found.")
+                raise typer.Exit(1)
+            res = _pick_resource_interactive(
+                resources=candidates,
+                ctx=ctx,
+                title=f"Select a {rtype.value} to view",
+            )
+            if res is None:
+                raise typer.Exit(0)
+            _show_resource(res, ctx)
 
     @app.command("new", help=f"Create a new {rtype.value}.")
     def new_cmd(
@@ -252,26 +374,53 @@ def build_group(
         if edit and not dry_run and result is not fs.Op.SKIPPED:
             _open_in_editor(file_path)
 
-    @app.command("edit", help=f"Open a {rtype.value} in $EDITOR.")
+    @app.command("edit", help=f"Edit a {rtype.value}. If NAME is omitted, pick interactively.")
     def edit_cmd(
-        name_arg: Annotated[str, typer.Argument(metavar="NAME")],
+        name_arg: Annotated[
+            str | None,
+            typer.Argument(
+                metavar="NAME",
+                help=f"{rtype.value} name or filename.",
+                show_default=False,
+            ),
+        ] = None,
         harness: Annotated[str | None, typer.Option("--harness", "-H")] = None,
         project_only: Annotated[bool, typer.Option("--project", "-p")] = False,
         global_only: Annotated[bool, typer.Option("--global", "-g")] = False,
     ) -> None:
         ctx = detect()
         cfg = cfgmod.load(ctx.project_root)
-        scope = Scope.GLOBAL if global_only else Scope.PROJECT
-        if scope is Scope.PROJECT and not ctx.in_project:
-            scope = Scope.GLOBAL
-        h = _resolve_harness_for_write(harness, cfg, rtype)
-        res = find(h, rtype, name_arg, scope, ctx)
-        if res is None:
-            ui.error(
-                f"No {rtype.value} named {name_arg!r} in {h.display_name} at {scope.value} scope."
+        scope = _resolve_scope_for_edit(ctx, project_only, global_only)
+
+        if name_arg is not None:
+            # Exact mode — unchanged behavior.
+            h = _resolve_harness_for_write(harness, cfg, rtype)
+            res = find(h, rtype, name_arg, scope, ctx)
+            if res is None:
+                ui.error(
+                    f"No {rtype.value} named {name_arg!r} in {h.display_name} at {scope.value} scope."
+                )
+                raise typer.Exit(1)
+            raise typer.Exit(_open_in_editor(res.entry))
+        else:
+            # Interactive mode.
+            if not sys.stdin.isatty():
+                ui.error("Interactive selection requires a TTY. Pass NAME explicitly.")
+                raise typer.Exit(2)
+            candidates = _discover_candidates(
+                rtype=rtype, ctx=ctx, cfg=cfg, scope=scope, harness_raw=harness
             )
-            raise typer.Exit(1)
-        raise typer.Exit(_open_in_editor(res.entry))
+            if not candidates:
+                ui.error(f"No {rtype.value}s found.")
+                raise typer.Exit(1)
+            res = _pick_resource_interactive(
+                resources=candidates,
+                ctx=ctx,
+                title=f"Select a {rtype.value} to edit",
+            )
+            if res is None:
+                raise typer.Exit(0)
+            raise typer.Exit(_open_in_editor(res.entry))
 
     @app.command("rm", help=f"Delete a {rtype.value}.")
     def rm_cmd(
