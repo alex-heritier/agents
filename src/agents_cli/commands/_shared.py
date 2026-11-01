@@ -15,6 +15,7 @@ import typer
 
 from agents_cli import config as cfgmod
 from agents_cli import fs, sync, templates, ui
+from agents_cli.browser import run_edit_picker, run_show_browser
 from agents_cli.discovery import DiscoveredResource, discover, find
 from agents_cli.harnesses import ALL_HARNESSES, Harness, ResourceType, get, iter_supporting
 from agents_cli.paths import Scope, ScopeContext, detect, display_path, render_paths
@@ -150,52 +151,6 @@ def _discover_candidates(
     return results
 
 
-def _pick_resource_interactive(
-    *,
-    resources: list[DiscoveredResource],
-    ctx: ScopeContext,
-    title: str,
-) -> DiscoveredResource | None:
-    """Render a numbered picker and return the chosen resource, or ``None`` on cancel.
-
-    When there is exactly one candidate the prompt is skipped and that
-    resource is returned immediately.
-    """
-    if len(resources) == 1:
-        return resources[0]
-
-    rows: list[tuple[str, ...]] = []
-    for i, res in enumerate(resources, start=1):
-        mark = ""
-        if res.is_symlink:
-            mark = "↪ "
-        elif res.is_alias_location:
-            mark = "~ "
-        scope_label = "project" if res.scope is Scope.PROJECT else "global"
-        rows.append(
-            (
-                str(i),
-                res.harness_id,
-                scope_label,
-                mark + res.display_name(),
-                display_path(res.path, ctx),
-                _format_size(res.size),
-            )
-        )
-
-    ui.banner(title)
-    ui.table(
-        None,
-        columns=("#", "Harness", "Scope", "Name", "Path", "Size"),
-        rows=rows,
-    )
-
-    idx = ui.prompt_choice(len(resources))
-    if idx is None:
-        return None
-    return resources[idx]
-
-
 def _show_resource(res: DiscoveredResource, ctx: ScopeContext) -> None:
     """Read ``res.entry`` and display it through ``ui.view_text``."""
     h_name = get(res.harness_id).display_name
@@ -307,14 +262,16 @@ def build_group(
             if not candidates:
                 ui.error(f"No {rtype.value}s found.")
                 raise typer.Exit(1)
-            res = _pick_resource_interactive(
-                resources=candidates,
-                ctx=ctx,
-                title=f"Select a {rtype.value} to view",
-            )
-            if res is None:
-                raise typer.Exit(0)
-            _show_resource(res, ctx)
+            if len(candidates) == 1:
+                _show_resource(candidates[0], ctx)
+            else:
+                raise typer.Exit(
+                    run_show_browser(
+                        resources=candidates,
+                        ctx=ctx,
+                        title=f"Select a {rtype.value} to view",
+                    )
+                )
 
     @app.command("new", help=f"Create a new {rtype.value}.")
     def new_cmd(
@@ -413,14 +370,17 @@ def build_group(
             if not candidates:
                 ui.error(f"No {rtype.value}s found.")
                 raise typer.Exit(1)
-            res = _pick_resource_interactive(
-                resources=candidates,
-                ctx=ctx,
-                title=f"Select a {rtype.value} to edit",
-            )
-            if res is None:
-                raise typer.Exit(0)
-            raise typer.Exit(_open_in_editor(res.entry))
+            if len(candidates) == 1:
+                raise typer.Exit(_open_in_editor(candidates[0].entry))
+            else:
+                entry = run_edit_picker(
+                    resources=candidates,
+                    ctx=ctx,
+                    title=f"Select a {rtype.value} to edit",
+                )
+                if entry is None:
+                    raise typer.Exit(0)
+                raise typer.Exit(_open_in_editor(entry))
 
     @app.command("rm", help=f"Delete a {rtype.value}.")
     def rm_cmd(

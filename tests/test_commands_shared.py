@@ -10,7 +10,6 @@ never touch ``$HOME`` or open a real editor.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -18,7 +17,6 @@ from typer.testing import CliRunner
 
 from agents_cli import ui
 from agents_cli.commands._shared import (
-    _pick_resource_interactive,
     _resolve_scope_for_edit,
     _resolve_scope_for_show,
     build_group,
@@ -268,44 +266,36 @@ def test_edit_interactive_one_candidate_auto_selects(project: Path, fake_home: P
 
 
 # ---------------------------------------------------------------------------
-# Interactive show — multiple candidates, select by index
+# Interactive show — multiple candidates, launch browser
 # ---------------------------------------------------------------------------
 
 
-def test_show_interactive_multiple_candidates_selects_by_index(
-    project: Path, fake_home: Path
-) -> None:
+def test_show_interactive_multiple_candidates_calls_browser(project: Path, fake_home: Path) -> None:
     _write(project / ".opencode" / "commands" / "alpha.md", "alpha content")
     _write(project / ".opencode" / "commands" / "beta.md", "beta content")
     app = _cmd_app()
     ctx = ScopeContext(project_root=project, home=fake_home)
 
-    viewed_content: list[str] = []
-
-    def capture_view(title: str, subtitle: str | None, content: str) -> None:
-        viewed_content.append(content)
-
-    # Simulate user typing "2" (second resource, sorted alpha → beta).
     with (
         patch("agents_cli.commands._shared.detect", return_value=ctx),
         patch("agents_cli.commands._shared.cfgmod.load", return_value=_default_cfg()),
         patch("agents_cli.commands._shared.sys") as mock_sys,
-        patch("agents_cli.ui.view_text", side_effect=capture_view),
-        patch("builtins.input", return_value="2"),
+        patch("agents_cli.commands._shared.run_show_browser", return_value=0) as mock_browser,
     ):
         mock_sys.stdin.isatty.return_value = True
         result = runner.invoke(app, ["show"])
 
     assert result.exit_code == 0
-    assert viewed_content == ["beta content"]
+    mock_browser.assert_called_once()
+    assert len(mock_browser.call_args.kwargs["resources"]) == 2
 
 
 # ---------------------------------------------------------------------------
-# Interactive edit — multiple candidates, select by index
+# Interactive edit — multiple candidates, launch picker
 # ---------------------------------------------------------------------------
 
 
-def test_edit_interactive_multiple_candidates_selects_by_index(
+def test_edit_interactive_multiple_candidates_opens_via_picker(
     project: Path, fake_home: Path
 ) -> None:
     _write(project / ".opencode" / "commands" / "alpha.md", "alpha")
@@ -313,19 +303,19 @@ def test_edit_interactive_multiple_candidates_selects_by_index(
     app = _cmd_app()
     ctx = ScopeContext(project_root=project, home=fake_home)
 
+    alpha_path = project / ".opencode" / "commands" / "alpha.md"
     edited_paths: list[Path] = []
 
     def capture_editor(path: Path) -> int:
         edited_paths.append(path)
         return 0
 
-    # Simulate user typing "1" (first resource = alpha).
     with (
         patch("agents_cli.commands._shared.detect", return_value=ctx),
         patch("agents_cli.commands._shared.cfgmod.load", return_value=_default_cfg()),
         patch("agents_cli.commands._shared.sys") as mock_sys,
         patch("agents_cli.commands._shared._open_in_editor", side_effect=capture_editor),
-        patch("builtins.input", return_value="1"),
+        patch("agents_cli.commands._shared.run_edit_picker", return_value=alpha_path),
     ):
         mock_sys.stdin.isatty.return_value = True
         result = runner.invoke(app, ["edit"])
@@ -336,7 +326,7 @@ def test_edit_interactive_multiple_candidates_selects_by_index(
 
 
 # ---------------------------------------------------------------------------
-# Interactive — cancel from picker exits 0
+# Interactive — cancel from browser/picker exits 0
 # ---------------------------------------------------------------------------
 
 
@@ -350,7 +340,7 @@ def test_show_interactive_cancel_exits_0(project: Path, fake_home: Path) -> None
         patch("agents_cli.commands._shared.detect", return_value=ctx),
         patch("agents_cli.commands._shared.cfgmod.load", return_value=_default_cfg()),
         patch("agents_cli.commands._shared.sys") as mock_sys,
-        patch("builtins.input", return_value="q"),
+        patch("agents_cli.commands._shared.run_show_browser", return_value=0),
     ):
         mock_sys.stdin.isatty.return_value = True
         result = runner.invoke(app, ["show"])
@@ -368,7 +358,7 @@ def test_edit_interactive_cancel_exits_0(project: Path, fake_home: Path) -> None
         patch("agents_cli.commands._shared.detect", return_value=ctx),
         patch("agents_cli.commands._shared.cfgmod.load", return_value=_default_cfg()),
         patch("agents_cli.commands._shared.sys") as mock_sys,
-        patch("builtins.input", return_value="q"),
+        patch("agents_cli.commands._shared.run_edit_picker", return_value=None),
     ):
         mock_sys.stdin.isatty.return_value = True
         result = runner.invoke(app, ["edit"])
@@ -377,12 +367,13 @@ def test_edit_interactive_cancel_exits_0(project: Path, fake_home: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# Alias / symlink row prefixes in picker
+# format_resource_row prefixes (browser helper, tested here for integration)
 # ---------------------------------------------------------------------------
 
 
-def test_pick_resource_interactive_symlink_prefix(project: Path, fake_home: Path) -> None:
-    """Symlink entries get the '↪ ' prefix in the picker table."""
+def test_format_resource_row_prefixes(project: Path, fake_home: Path) -> None:
+    """format_resource_row attaches '↪ ' for symlinks and '~ ' for alias locations."""
+    from agents_cli.browser import format_resource_row
     from agents_cli.discovery import DiscoveredResource
 
     ctx = ScopeContext(project_root=project, home=fake_home)
@@ -414,25 +405,11 @@ def test_pick_resource_interactive_symlink_prefix(project: Path, fake_home: Path
         is_alias_location=True,
     )
 
-    rows_seen: list[tuple] = []
+    sym_row = format_resource_row(sym_res, ctx, 1)
+    alias_row = format_resource_row(alias_res, ctx, 2)
 
-    def capture_table(title: Any, *, columns: Any, rows: Any) -> None:
-        rows_seen.extend(rows)
-
-    with (
-        patch("agents_cli.ui.table", side_effect=capture_table),
-        patch("agents_cli.ui.banner"),
-        patch("agents_cli.ui.prompt_choice", return_value=None),
-    ):
-        _pick_resource_interactive(
-            resources=[sym_res, alias_res],
-            ctx=ctx,
-            title="Test",
-        )
-
-    names = [r[3] for r in rows_seen]  # Name column is index 3 (after #, Harness, Scope)
-    assert names[0].startswith("↪ "), f"symlink prefix missing: {names[0]!r}"
-    assert names[1].startswith("~ "), f"alias prefix missing: {names[1]!r}"
+    assert sym_row[1].startswith("↪ "), f"symlink prefix missing: {sym_row[1]!r}"
+    assert alias_row[1].startswith("~ "), f"alias prefix missing: {alias_row[1]!r}"
 
 
 # ---------------------------------------------------------------------------

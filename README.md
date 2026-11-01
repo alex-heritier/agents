@@ -82,15 +82,15 @@ agents guideline sync --to claude       # sync just guidelines to claude
 
 agents skill list                       # all skills across harnesses
 agents skill new my-skill               # scaffold ~/.opencode/skills/my-skill/
-agents skill show my-skill              # exact lookup
-agents skill show                       # interactive picker (omit NAME)
+agents skill show                       # exact lookup
+agents skill show                       # two-pane TUI browser (omit NAME)
 agents skill edit my-skill              # opens $EDITOR on exact match
-agents skill edit                       # interactive picker, then opens $EDITOR
+agents skill edit                       # TUI picker, then opens $EDITOR
 agents skill sync --to claude,gemini
 agents skill rm my-skill
 
-agents rule show                        # browse all guideline files interactively
-agents rule edit                        # pick a guideline and open it in $EDITOR
+agents rule show                        # two-pane TUI browser for all guideline files
+agents rule edit                        # TUI picker — pick a guideline and open in $EDITOR
 
 agents command new commit
 agents subagent new reviewer
@@ -108,6 +108,34 @@ agents subagent new reviewer
 | `--only skill,command` | Restrict `agents sync` to specific resource types     |
 | `--dry-run` / `-n`     | Preview — write nothing                               |
 | `--force` / `-f`       | Don't prompt before overwriting                       |
+
+### Interactive TUI keybindings
+
+When `NAME` is omitted, `show` and `edit` launch a full-screen terminal UI.
+
+**`show` — two-pane browser** (left: file list, right: live preview):
+
+| Key        | Action                    |
+|------------|---------------------------|
+| `↑` / `↓` | Move cursor               |
+| `j` / `k`  | Move cursor (vim-style)   |
+| `/`        | Open filter bar           |
+| `Esc`      | Clear filter              |
+| `q`        | Quit (exit 0)             |
+
+**`edit` — single-pane picker**:
+
+| Key        | Action                    |
+|------------|---------------------------|
+| `↑` / `↓` | Move cursor               |
+| `j` / `k`  | Move cursor (vim-style)   |
+| `/`        | Open filter bar           |
+| `Esc`      | Clear filter              |
+| `Enter`    | Open in `$EDITOR`         |
+| `q`        | Cancel (exit 0)           |
+
+> **Non-interactive fallback:** when `stdin` is not a TTY (e.g. CI), omitting
+> `NAME` exits with code 2. Always pass `NAME` explicitly in scripts.
 
 ---
 
@@ -134,12 +162,13 @@ subagent = "copy"
 
 ## Supported harnesses
 
-Every row is a real, verified path convention as of April 2026.
+Every row is a real, verified path convention as of May 2026.
 
 | Harness         | id          | Guideline               | Skills                               | Commands                              | Subagents                              |
 |-----------------|-------------|-------------------------|--------------------------------------|---------------------------------------|----------------------------------------|
 | OpenCode        | `opencode`  | `AGENTS.md`             | `.opencode/skills/<n>/SKILL.md`      | `.opencode/commands/<n>.md`           | `.opencode/agents/<n>.md`              |
 | Claude Code     | `claude`    | `CLAUDE.md`             | `.claude/skills/<n>/SKILL.md`        | `.claude/commands/<n>.md`             | `.claude/agents/<n>.md`                |
+| Pi              | `pi`        | `AGENTS.md`             | `.pi/skills/<n>/SKILL.md`            | `.pi/prompts/<n>.md`¹                 | —                                      |
 | Gemini CLI      | `gemini`    | `GEMINI.md`             | `.gemini/skills/<n>/SKILL.md`        | `.gemini/commands/<n>.toml` (TOML!)   | `.gemini/agents/<n>.md`                |
 | Droid (Factory) | `droid`     | `AGENTS.md`             | `.factory/skills/<n>/SKILL.md`       | `.factory/commands/<n>.md`            | `.factory/droids/<n>.md`               |
 | Kilo Code       | `kilo`      | `AGENTS.md` / `CLAUDE.md` | `.kilo/skills/<n>/SKILL.md`        | `.kilo/commands/<n>.md`               | `.kilo/agents/<n>.md`                  |
@@ -148,6 +177,8 @@ Every row is a real, verified path convention as of April 2026.
 | Amp Code        | `amp`       | `AGENTS.md`             | `.agents/skills/<n>/SKILL.md`        | `.agents/commands/<n>.md`             | —                                      |
 | Qwen Code       | `qwen`      | `QWEN.md`               | —                                    | `.qwen/commands/<n>.toml`             | —                                      |
 | GitHub Copilot  | `copilot`   | `.github/copilot-instructions.md` | —                          | —                                     | —                                      |
+
+¹ Pi calls these "prompt templates" — they're markdown snippets expanded via `/name`.
 
 `agents-cli` also knows each harness's **alias paths** (e.g. OpenCode reading
 `CLAUDE.md`, Codex reading `AGENTS.md` from multiple locations, skills honoring

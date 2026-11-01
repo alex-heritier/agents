@@ -190,6 +190,48 @@ CLAUDE = Harness(
 
 
 # -----------------------------------------------------------------------
+# Pi — https://pi.dev/docs (verified 2026-05, v0.74.0)
+# -----------------------------------------------------------------------
+# - Guidelines: AGENTS.md (project root + ancestor walk). Also reads CLAUDE.md.
+# - Skills: .pi/skills/<name>/SKILL.md. Also cross-loads from .agents/skills/
+#   and .claude/skills/ (listed as aliases so discovery finds them).
+# - Commands: pi calls them "prompt templates" (.pi/prompts/<name>.md).
+# - No native subagent file type — subagents are TypeScript extensions.
+# - Extensions (.pi/extensions/*.ts) are TypeScript, not synced here.
+PI = Harness(
+    id="pi",
+    display_name="Pi",
+    aliases=("pi-coding-agent",),
+    guideline=ResourceSpec(
+        project_path="AGENTS.md",
+        global_path="~/.pi/agent/AGENTS.md",
+        project_aliases=("CLAUDE.md",),
+    ),
+    skill=ResourceSpec(
+        project_path=".pi/skills/{name}/SKILL.md",
+        global_path="~/.pi/agent/skills/{name}/SKILL.md",
+        project_aliases=(
+            ".agents/skills/{name}/SKILL.md",
+            ".claude/skills/{name}/SKILL.md",
+        ),
+        global_aliases=(
+            "~/.agents/skills/{name}/SKILL.md",
+            "~/.claude/skills/{name}/SKILL.md",
+        ),
+        kind=Kind.DIRECTORY,
+        entry_file="SKILL.md",
+    ),
+    command=ResourceSpec(
+        project_path=".pi/prompts/{name}.md",
+        global_path="~/.pi/agent/prompts/{name}.md",
+    ),
+    notes="Commands are 'prompt templates' (.pi/prompts/). "
+    "Skills cross-loadable from .agents/skills/ and .claude/skills/. "
+    "Extensions (.pi/extensions/*.ts) are not synced.",
+)
+
+
+# -----------------------------------------------------------------------
 # Gemini CLI — https://geminicli.com/docs (verified 2026-04)
 # -----------------------------------------------------------------------
 # - Default context filename is GEMINI.md (configurable in settings.json).
@@ -403,6 +445,7 @@ COPILOT = Harness(
 ALL_HARNESSES: tuple[Harness, ...] = (
     OPENCODE,
     CLAUDE,
+    PI,
     GEMINI,
     DROID,
     KILO,
